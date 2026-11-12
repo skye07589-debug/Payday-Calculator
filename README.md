@@ -23,8 +23,3 @@ After the first visit it also opens without internet.
 
 The deduction rules were built from one employee’s Jul–Oct 2026 payslips, so results are estimates. Your payslip is the final word.
 
-## Hosting on GitHub Pages
-
-1. Put all the files in this folder in the root of a repository.
-2. Go to **Settings → Pages**, choose **Deploy from a branch**, pick `main` and `/ (root)`, then save.
-3. Your page appears at `https://<your-username>.github.io/<repository-name>/` after about a minute.
