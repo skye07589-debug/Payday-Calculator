@@ -1,0 +1,600 @@
+<!doctype html>
+<!--
+  PAYDAY CALCULATOR: READ THIS FIRST
+  ==================================
+  One self-contained file. HTML = structure, CSS = looks, JavaScript = the maths.
+  No framework, no build step, no server. Everything a person types is saved in
+  their own browser (localStorage) and never sent anywhere.
+
+  WHAT IT DOES
+  Estimates take-home pay for ONE payday at a time, for a Philippine BPO payslip
+  paid every other Friday (26 paydays a year). It is an estimate, not payroll.
+
+  HOW THE FILE IS ORGANISED (search for the section comments)
+    1. CSS    colour tokens, layout (phone tabs vs desktop columns), components
+    2. HTML   top bar, Hours tab, Pay tab (take-home, chart, payslip), Settings, tab bar
+    3. JS     saved state, payday dates, shift maths, pay maths, chart, wiring
+    4. IMPORT payslip PDFs (script section 9). pdf.js is downloaded from cdnjs only when the Import button is used;
+              the PDF itself is read on the device and never uploaded.
+
+  THOUGHT PROCESS: WHY IT IS BUILT THIS WAY
+    - One plain file, so it can sit on GitHub Pages or be pasted into a chat and
+      edited by anyone. A framework would add setup for very little gain.
+    - ONE state object, S. Every input's id is also its key in S (the input with
+      id="reg" is S.reg). Typing writes to S, then calc() redraws everything.
+      That rule keeps the code short: to add a field you touch four places (see
+      HOW TO ADD A FIELD below).
+    - Hours differ every payday but pay rates do not. So the per-payday inputs
+      are remembered separately in S.log, keyed by payday date, while rates and
+      allowances are global settings.
+    - Paydays follow a fixed 14-day pattern from one anchor date. Each payday is
+      just a whole number (its index from the anchor), and dates are worked out
+      in UTC so daylight saving or time zones can never shift a payday by a day.
+    - The deduction rules were reverse-engineered from real payslips, not taken
+      from a textbook. Government contributions are NOT taken evenly: SSS comes
+      out every payday, PhilHealth comes out on the first payday of each month, and Pag-IBIG on the first and second. See calc() for the exact rules.
+    - The "Next paydays" chart has to price paydays that are not selected, so
+      netFor() repeats the formulas in calc() in a short form. If you change one,
+      change the other. A chart that disagrees with the payslip is worse than no chart.
+    - Phone first. Phones get three tabs (Pay, Hours, Settings) with a bar on top
+      that always shows the payday. Wide screens show Hours and Pay side by side and
+      Settings becomes a slide-out panel. The same HTML serves both; CSS decides.
+    - Motion uses only transform and opacity (cheap for phones) and switches off
+      for anyone with "reduce motion" turned on.
+    - Colour lives in a handful of variables at the top of the style block, in a
+      light set and a dark set, so a re-skin is a few lines.
+
+  HOW TO MAKE COMMON CHANGES
+    Change colours ........ the variables at the top of the style block (light, then the two dark copies)
+    Change starting values  the object D in the script (these apply to anyone with nothing saved yet)
+    Change a pay rule ..... calc() for the selected payday AND netFor() for the chart
+    Change payday dates ... Settings has a "Payday pattern starts" date; default is anchor in D
+    Update yearly rates ... the constants inside calc() and netFor() (SSS 5%, PhilHealth 2.5%, Pag-IBIG 2%)
+    HOW TO ADD A FIELD (example: an hours field called "xyz")
+      1. NUM list: add "xyz" so it is read from the screen and saved
+      2. object D: give it a starting value
+      3. PF list: add "xyz" if it changes every payday (hours do, rates do not)
+      4. HTML: add a row with an input whose id is "xyz"; then use S.xyz in calc() and netFor()
+
+  KNOWN LIMITS (read before trusting a number)
+    - Estimates only. SSS has been up to about 25 pesos different from a real payslip.
+    - Tested against 17 real payslips (Mar to Oct 2026): gross within about 1 peso; SSS exact on 14 of 17
+      and 25 pesos off on 3; PhilHealth 3 centavos off. Test yours the same way.
+    - A third payday in a month carries SSS only (checked against a real payslip).
+    - Holiday pay and bonuses are typed in as lump sums (bonuses are tax-free). RDOT has its own rate but no night premium on top.
+    - Income tax is a rough yearly estimate; it has been zero for payslips seen so far.
+    - Rules are for 2026. When rates change, update the constants above.
+    - Payslip import reads Concentrix's payslip layout only. Anything it cannot recognise shows up as a gross-pay mismatch
+      on the check screen instead of being saved silently. Tested on 15 distinct payslips (17 files, 2 duplicates).
+
+  INSTALLABLE-APP FILES (GitHub package only): manifest.webmanifest, sw.js and the icon
+  images. They are what make "Add to Home Screen" and offline use work.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Payday calculator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Inter:wght@400;600&display=swap">
+<style>
+/* ==================== 1. COLOUR AND SIZE TOKENS ====================
+   Change the look here. One soft sage green on a light page; a muted dark set follows the phone's
+   setting. Bar charts and buttons read these names, so nothing else needs editing for a re-skin.
+   The dark values are written twice on purpose: once for "phone is set to dark" and once for a forced dark theme. */
+:root{--maxw:1120px;--ease:cubic-bezier(.2,.8,.2,1);--spring:cubic-bezier(.34,1.56,.64,1);--bg:#F7F8F4;--sf2:#EAF0E6;--ink:#1B261E;--mute:#566259;--line:#DDE3DA;--neg:#B5483A;--bar:#B3C4AE;--sel:#3F6247;--onsel:#fff;--sage:#DDE8D6;--ring:#3F6247;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);-webkit-text-size-adjust:100%}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101612;--sf2:#1F2A23;--ink:#E9EFE7;--mute:#9DAA9F;--line:#27322B;--neg:#E88F82;--bar:#3A4A3F;--sel:#A8C9A6;--onsel:#101612;--sage:#22302A;--ring:#A8C9A6;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101612;--sf2:#1F2A23;--ink:#E9EFE7;--mute:#9DAA9F;--line:#27322B;--neg:#E88F82;--bar:#3A4A3F;--sel:#A8C9A6;--onsel:#101612;--sage:#22302A;--ring:#A8C9A6;color-scheme:dark}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 120px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-feature-settings:"tnum" 1;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+[hidden]{display:none!important}
+svg{display:block}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.serif,h2,.big{font-family:Lora,Georgia,"Times New Roman",serif}
+h2{margin:0 0 4px;font-size:1.5rem;font-weight:600;line-height:1.2;letter-spacing:-.01em}
+.sub{margin:0 0 8px;color:var(--mute);font-size:.875rem}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px 8px}
+.pay{display:flex;align-items:center;gap:8px;max-width:var(--maxw);margin:0 auto}
+.chip{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:44px;font-size:.8125rem;color:var(--mute)}
+.chip b{color:var(--ink);font-weight:600;font-size:1rem}
+.mini{display:none;max-width:var(--maxw);margin:4px auto 0;justify-content:space-between;align-items:baseline;font-size:.875rem;color:var(--mute)}
+.mini b{font-family:Lora,Georgia,serif;font-size:1.25rem;font-weight:600;color:var(--ink)}
+body:not([data-tab="pay"]) .mini{display:flex}
+.gear{display:none}
+/* ==================== 2. LAYOUT ====================
+   Phone: each section is a "panel" and only the active tab's panel shows (see the max-width rule near the end).
+   Wide screens (900px and up): Hours and Pay sit side by side, the tab bar disappears and Settings slides in. */
+.panel{max-width:var(--maxw);margin:0 auto;padding:20px 16px;animation:rise .35s var(--ease)}
+.hero{background:var(--sage);margin:-20px -16px 0;padding:24px 16px 26px}
+.lab{margin:0 0 4px;color:var(--mute);font-size:.9375rem}
+.big{margin:0;font-weight:600;font-size:clamp(3rem,15vw,5rem);line-height:1.05;letter-spacing:-.02em;font-variant-numeric:lining-nums tabular-nums}
+.cur{font-size:.5em;font-weight:500;color:var(--mute);vertical-align:.7em;margin-right:6px}
+.sm{display:flex;flex-wrap:wrap;gap:6px 28px;margin:16px 0 0}
+.sm dt{color:var(--mute);font-size:.8125rem}.sm dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.sec{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+.big2{margin:4px 0 12px;font:600 2.25rem/1.1 Lora,Georgia,serif;font-variant-numeric:lining-nums tabular-nums}
+button{font:inherit;font-weight:600;color:var(--ink);background:var(--sf2);border:0;border-radius:12px;min-height:44px;min-width:44px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:inline-flex;align-items:center;justify-content:center;transition:opacity .12s,background-color .18s,color .18s}
+button:active{opacity:.6}
+input:focus-visible,button:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+@media(hover:hover){button:hover{background:var(--line)}.seg button[aria-pressed="false"]:hover{color:var(--ink)}}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;background:var(--sf2);border-radius:14px;padding:4px;margin-bottom:6px}
+.seg button{background:transparent;padding:0 2px;font-size:.875rem;white-space:nowrap;color:var(--mute);border-radius:10px}
+.seg button[aria-pressed="true"]{background:var(--sel);color:var(--onsel)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px;padding:8px 0;border-top:1px solid var(--line)}
+.row.f{border-top:0}
+.row>label{flex:1;min-width:0;font-size:1rem;font-weight:600;line-height:1.3}
+.row small,.blk small{display:block;color:var(--mute);font-size:.8125rem;font-weight:400;line-height:1.35}
+.st{display:flex;gap:6px;align-items:center}
+input[type=number],input[type=date],input[type=time]{font:600 1.0625rem Inter,system-ui,sans-serif;color:var(--ink);background:var(--sf2);border:0;border-radius:12px;min-height:44px;text-align:center;min-width:0}
+.st input{width:68px;padding:0 4px}
+.pre{display:flex;align-items:center;gap:8px}.pre span{font-weight:600;color:var(--mute)}.pre input{width:112px;padding:0 10px;text-align:right}
+.row>input[type=number]{width:120px;padding:0 12px;text-align:right}
+.row input[type=date]{width:152px;padding:0 10px;text-align:left}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.g2 label{display:grid;gap:4px;font-size:.8125rem;font-weight:600;color:var(--mute)}
+.g2 input{width:100%;padding:0 10px}
+.hint{margin:6px 0 10px;font-size:.8125rem;color:var(--mute)}
+.blk{padding:12px 0 4px;border-top:1px solid var(--line)}
+.blk>.t2{display:block;font-weight:600;margin-bottom:10px}
+.led{width:100%;border-collapse:collapse}
+.led th,.led td{padding:10px 0;border-top:1px solid var(--line);font-weight:400;font-size:.9375rem;text-align:left;vertical-align:top}
+.led th{position:relative}
+.led td{text-align:right;white-space:nowrap;padding-left:12px}
+.led .sh th{border:0;padding:16px 0 2px;color:var(--mute);font-size:.8125rem;font-weight:600}
+.led tbody:first-of-type .sh th{padding-top:0}
+.led .sum th,.led .sum td{font-weight:600}
+.led .netr th,.led .netr td{font:600 1.375rem Lora,Georgia,serif;border-top:2px solid var(--ink);padding-top:12px}
+.bar{display:block;height:3px;border-radius:2px;background:var(--neg);opacity:.6;margin-top:7px}
+.note{color:var(--mute);font-size:.8125rem;margin:12px 0 0}
+.txt{margin:12px 12px 0 0;background:transparent;color:var(--ink);font-weight:600;padding:0 4px;text-decoration:underline;text-underline-offset:3px}
+.ch{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}.ch h2{margin:0}.pg{display:flex;gap:6px;align-items:center}.tbtn{padding:0 14px;font-size:.875rem}
+.bars{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px;height:220px;touch-action:pan-y}
+/* Chart bars: each bar is a button so it can be tapped or reached by keyboard. */
+.col{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;background:transparent;border-radius:12px;padding:6px 0 4px;min-width:0;min-height:0;height:100%;color:var(--mute);font-size:.75rem}
+.col .bv{font-weight:600;color:var(--ink)}
+.col .bd{white-space:pre-line;text-align:center;line-height:1.2}
+.col .bc{flex:1;width:100%;display:flex;align-items:flex-end;min-height:0}
+.col i{display:block;width:100%;height:100%;border-radius:8px 8px 4px 4px;background:var(--bar);transform:scaleY(0);transform-origin:bottom;transition:transform .8s var(--spring) calc(var(--i)*50ms),background-color .2s}
+.col.past i{opacity:.6}
+.col.on i{background:var(--sel);opacity:1}
+.col.on .bd{color:var(--ink);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+/* Bottom tab bar (phones). Body gets extra bottom padding so it never covers the last row. */
+.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--bg);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
+.tabs button{flex-direction:column;gap:2px;min-height:52px;font-size:.75rem;background:transparent;color:var(--mute);border-radius:14px}
+.tabs button[aria-current="page"]{background:var(--sage);color:var(--ink)}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sclose,.scrim{display:none}
+/* PHONE RULES: hide every panel, then show the one that matches body[data-tab]. */
+@media(max-width:899px){.panel,.set{display:none}body[data-tab="pay"] #tab-pay,body[data-tab="hours"] #tab-hours,body[data-tab="set"] #tab-set{display:block}.set{max-width:var(--maxw);margin:0 auto;padding:20px 16px;animation:rise .35s var(--ease)}}
+/* DESKTOP RULES: two columns, no tab bar, Settings as a fixed slide-over that is
+   visibility:hidden while closed so keyboard users cannot tab into it by accident. */
+@media(min-width:900px){
+body{padding-bottom:0}.tabs{display:none}
+.mini{display:none!important}
+.gear{display:inline-flex;margin-left:auto}.pay .chip{flex:0 1 300px}
+.wrap{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:minmax(340px,420px) minmax(0,1fr);gap:0 40px;padding:8px 16px 40px;align-items:start}
+.wrap .panel{padding:20px 0;max-width:none;margin:0}
+.hero{margin:0;border-radius:20px;padding:28px 24px}
+.set{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--bg);border-left:1px solid var(--line);overflow:auto;padding:calc(20px + env(safe-area-inset-top,0px)) 20px 24px;transform:translateX(100%);visibility:hidden;transition:transform .25s var(--ease),visibility 0s .25s;z-index:40}
+.pop .set{transform:none;visibility:visible;transition-delay:0s}
+.scrim{display:block;position:fixed;inset:0;background:rgba(16,22,18,.4);opacity:0;pointer-events:none;transition:opacity .25s;z-index:35}
+.pop .scrim{opacity:1;pointer-events:auto}
+.sclose{display:inline-flex}}
+/* ==================== 3. MOTION ==================== (all of it stops for reduce-motion at the very end) */
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.boot .bar{transform-origin:left;animation:grow .6s var(--ease) .4s both}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+.imp small{display:block;color:var(--mute);font-size:.8125rem;font-weight:400;line-height:1.35;margin-top:2px;white-space:normal}
+.imp .w{color:var(--neg)}.imp #impb{padding:0 18px;margin-top:4px}.imp .bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.imp .bar button{padding:0 18px}.imp .go{background:var(--sel);color:var(--onsel)}.imp .led{margin-top:10px}.imp .led td{white-space:normal;max-width:46%}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#F7F8F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101612" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Payday">
+</head>
+<body data-tab="pay">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="mi" viewBox="0 0 24 24"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="pl" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="cl" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="cr" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="ip" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="ih" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="is" viewBox="0 0 24 24"><path d="M4 8h8M18 8h2M4 16h2M12 16h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+<symbol id="ix" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</defs></svg>
+<!-- TOP BAR: payday arrows and date. Stays on screen on every tab. The "Take-home" strip only shows on Hours and Settings, so you can see the effect of a change. -->
+<header class="top">
+<div class="pay"><button type="button" id="pp" aria-label="Previous payday" title="Previous payday (left arrow key)"><svg width="20" height="20"><use href="#cl"/></svg></button><div class="chip" id="pdc" aria-live="polite"><b id="pdd"></b><span id="pds"></span></div><button type="button" id="pn" aria-label="Next payday" title="Next payday (right arrow key)"><svg width="20" height="20"><use href="#cr"/></svg></button><button type="button" id="gear" class="gear" aria-label="Pay settings" aria-expanded="false"><svg width="20" height="20"><use href="#is"/></svg></button></div>
+<div class="mini"><span>Take-home</span><b id="net3"></b></div>
+</header>
+<!-- MAIN: the two big panels. Hours (everything that changes each payday) and Pay (the result). -->
+<main class="wrap">
+<section class="panel" id="tab-hours"><h2>Hours</h2><p class="sub">For the payday shown above</p>
+<div class="g2"><label for="st">Shift starts<input id="st" type="time"></label><label for="en">Shift ends<input id="en" type="time"></label></div>
+<div class="row f"><label for="br">Unpaid break (hours)</label><input id="br" type="number" inputmode="decimal" step="any"></div>
+<p class="hint" id="shsum"></p>
+<div class="seg" data-seg="shift" role="group" aria-label="Night hours"><button type="button" data-v="auto">From schedule</button><button type="button" data-v="cu">Custom</button></div>
+<div class="row"><label for="reg">Regular hours</label><div class="st" data-f="reg" data-s="1"><button type="button" aria-label="Decrease regular hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="reg" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase regular hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="night">Night diff hours<small>10PM–6AM</small></label><div class="st" data-f="night" data-s="0.5"><button type="button" aria-label="Decrease night hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="night" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase night hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="ot">Overtime hours</label><div class="st" data-f="ot" data-s="0.25"><button type="button" aria-label="Decrease overtime hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="ot" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase overtime hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="rdot">RDOT hours<small>Rest day overtime</small></label><div class="st" data-f="rdot" data-s="0.25"><button type="button" aria-label="Decrease RDOT hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="rdot" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase RDOT hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="pto">PTO hours</label><div class="st" data-f="pto" data-s="1"><button type="button" aria-label="Decrease PTO hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="pto" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase PTO hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="days">Days worked<small>Allowances are paid per day</small></label><div class="st" data-f="days" data-s="1"><button type="button" aria-label="Decrease days worked"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="days" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase days worked"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="oe">Holiday pay<small>Taxable, not part of basic pay</small></label><div class="pre"><span>₱</span><input id="oe" type="number" inputmode="decimal" step="any"></div></div>
+<div class="row"><label for="bon">Bonus or incentive<small>Tax-free, not part of basic pay</small></label><div class="pre"><span>₱</span><input id="bon" type="number" inputmode="decimal" step="any"></div></div>
+<div class="row"><label for="other">Extra deduction<small>One-off, this payday only</small></label><div class="pre"><span>₱</span><input id="other" type="number" inputmode="decimal" step="any"></div></div>
+<div class="sec imp"><h2 style="font-size:1.125rem">Import payslips</h2>
+<p class="sub">Pick one or more Concentrix payslip PDFs. Hours, night differential, overtime, leave, holiday pay, bonuses and deductions are filled in for each payday, and you check them before anything is saved. The PDF is read on this device and is not uploaded. Names and ID numbers are never read or kept. Set your hourly rate and allowances in Settings first, so the check can compare them.</p>
+<input id="impf" type="file" accept=".pdf,application/pdf" multiple hidden>
+<button type="button" id="impb">Choose payslip PDFs</button>
+<div id="impr" aria-live="polite"></div>
+<p class="note">The PDF reader (pdf.js) is downloaded from cdnjs.cloudflare.com the first time you import, so you need a connection then.</p></div>
+</section>
+<section class="panel" id="tab-pay">
+<!-- RESULT: big take-home number, then the chart and the payslip. Numbers are filled in by calc() in the script. -->
+<div class="hero"><p class="lab">Take-home this payday</p><p class="big" id="net"></p>
+<dl class="sm"><div><dt>Gross</dt><dd id="g1"></dd></div><div><dt>Deductions</dt><dd id="g2"></dd></div><div><dt>Kept</dt><dd id="g3"></dd></div></dl></div>
+<div class="sec" style="margin-top:24px"><div class="ch"><h2>Next paydays</h2><div class="pg"><button type="button" id="cnow" class="tbtn" hidden>Now</button><button type="button" id="cp" aria-label="Earlier paydays"><svg width="20" height="20"><use href="#cl"/></svg></button><button type="button" id="cn" aria-label="Later paydays"><svg width="20" height="20"><use href="#cr"/></svg></button></div></div><div class="bars" id="bars" role="group" aria-label="Take-home for the next paydays. Press a bar to open that payday."></div><p class="note" id="bcap"></p></div>
+<div class="sec"><h2>Payslip</h2>
+<table class="led"><caption class="sr">Payslip breakdown</caption>
+<tbody><tr class="sh"><th colspan="2" scope="colgroup">Earnings</th></tr></tbody><tbody id="earn"></tbody>
+<tbody><tr class="sum"><th scope="row">Gross pay</th><td id="gross"></td></tr><tr class="sh"><th colspan="2" scope="colgroup">Deductions</th></tr></tbody><tbody id="ded"></tbody>
+<tbody><tr class="sum"><th scope="row">Total deductions</th><td id="tded"></td></tr><tr class="netr"><th scope="row">Net pay</th><td id="net2"></td></tr></tbody></table>
+<p class="note" id="avg"></p>
+</div>
+<div class="sec"><h2>13th month pay</h2>
+<p class="sub" id="m13h"></p>
+<p class="big2" id="m13"></p>
+<div class="row f"><label for="ytdb">Other basic pay so far (₱)<small>Paydays you save here count automatically. Add basic pay from paydays you did not save, such as before you started using this</small></label><input id="ytdb" type="number" inputmode="decimal" step="any"></div>
+<table class="led"><caption class="sr">13th month pay working</caption><tbody id="m13d"></tbody></table>
+<p class="note">Basic pay only: allowances, overtime, night differential and holiday pay are not counted. Employers must pay it by December 24, and the first ₱90,000 of 13th month pay and other bonuses is tax-free.</p></div>
+</section>
+</main>
+<!-- SETTINGS: things that rarely change (rates, allowances, loan, payday pattern). A tab on phones, a slide-out panel on wide screens. -->
+<aside class="set" id="tab-set"><div class="sh"><h2>Pay settings</h2><button type="button" id="sclose" class="sclose" aria-label="Close settings"><svg width="20" height="20"><use href="#ix"/></svg></button></div><p class="sub" id="sum"></p>
+<div class="row f"><label for="basic">Monthly basic pay (₱)</label><input id="basic" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="rate">Hourly rate (₱)<small>Basic pay × 12 ÷ 2,088 hours</small></label><input id="rate" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="comp">Complexity allowance (₱/month)</label><input id="comp" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="rice">Rice allowance (₱/month)</label><input id="rice" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="otm">Overtime rate (%)</label><input id="otm" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="rdotm">RDOT rate (%)<small>Rest day overtime. 169% is the standard legal rate, so check your payslip</small></label><input id="rdotm" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="ndp">Night differential (%)<small>Saved for each payday. Check your payslip: it is usually 10% or 15%</small></label><input id="ndp" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="loan">Salary loan (₱)<small>Taken every payday until the last deduction date below</small></label><input id="loan" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="loanStart">First loan deduction<small>The first payday the loan came out</small></label><input id="loanStart" type="date"></div>
+<div class="row"><label for="loanEnd">Last loan deduction<small>No loan is taken after this payday</small></label><input id="loanEnd" type="date"></div>
+<div class="row"><label for="anchor">Payday pattern starts<small>Paydays repeat every 14 days from this date</small></label><input id="anchor" type="date"></div>
+<div class="blk"><span class="t2" id="ctl">SSS, PhilHealth and Pag-IBIG on this payday<small>Follows the payslip pattern: SSS every payday, PhilHealth and Pag-IBIG on the first payday of the month, salary loan every payday.</small></span>
+<div class="seg" data-seg="cmode" role="group" aria-labelledby="ctl"><button type="button" data-v="auto">Payslip pattern</button><button type="button" data-v="none">None</button></div></div>
+<p class="note">Built from one Concentrix employee’s Jul–Oct 2026 payslips, so treat the results as an estimate. SSS is 5% of that payday’s gross rounded to the nearest ₱500, and the slips were sometimes ₱25 higher. PhilHealth (2.5% of basic) and Pag-IBIG (2% up to ₱200 a month) are taken on the first payday of the month; the first-payday amounts are worked out from your year-to-date totals, not seen directly. Allowances are prorated per day worked. Tax has been ₱0 so far. Your payslip is the final word.</p>
+<button class="txt" id="inst" type="button" hidden>Install this app</button>
+<button class="txt" id="reset" type="button">Reset all values</button>
+</aside>
+<div class="scrim" id="scrim"></div>
+<!-- BOTTOM TAB BAR: phones only. Each button just sets body[data-tab] in the script. -->
+<nav class="tabs" aria-label="Sections"><button type="button" data-t="pay"><svg width="24" height="24" aria-hidden="true"><use href="#ip"/></svg>Pay</button><button type="button" data-t="hours"><svg width="24" height="24" aria-hidden="true"><use href="#ih"/></svg>Hours</button><button type="button" data-t="set"><svg width="24" height="24" aria-hidden="true"><use href="#is"/></svg>Settings</button></nav>
+<!-- THE SCRIPT: sections are numbered 1 to 8 in the comments. Read them in order. -->
+<script>
+/* ==================== 1. SAVED STATE ====================
+   KEY is the localStorage name. NUM lists every numeric field: each one is an input
+   on the page AND a property of S. D holds the starting values for a first-time visitor.
+   Anything saved earlier is merged over D, so new fields added later get a sensible
+   default instead of breaking an old saved copy. */
+var KEY="payday-calc-shared-v1",NUM=["basic","rate","reg","night","ot","otm","pto","comp","rice","other","ndp","days","loan","oe","br","rdot","rdotm","ytdb","bon"];
+var D={basic:0,rate:0,reg:80,night:0,ot:0,otm:125,pto:0,comp:0,rice:0,other:0,oe:0,loan:0,loanEnd:"2026-12-18",rdot:0,rdotm:169,ytdb:0,bon:0,loanStart:"2000-01-01",ndp:10,days:10,cmode:"auto",shift:"auto",st:"09:00",en:"18:00",br:1,anchor:"2026-11-06"};
+var S=Object.assign({},D);
+try{var sv=localStorage.getItem(KEY);if(sv)S=Object.assign({},D,JSON.parse(sv));}catch(e){}
+var $=function(i){return document.getElementById(i)};
+var r2=function(x){return Math.round(x*100)/100};
+var money=function(x){return(x<0?"−":"")+"₱"+Math.abs(x).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})};
+var clamp=function(x,a,b){return Math.min(b,Math.max(a,x))};
+/* Income tax on a yearly amount (Philippine TRAIN brackets): nothing up to 250,000, then
+   15%, 20%, 25%, 30%, 35% on the slice above each step. Used only for a rough estimate. */
+function tax(a){if(a<=250000)return 0;if(a<=400000)return(a-250000)*.15;if(a<=800000)return 22500+(a-400000)*.2;if(a<=2000000)return 102500+(a-800000)*.25;if(a<=8000000)return 402500+(a-2000000)*.3;return 2202500+(a-8000000)*.35}
+/* ==================== 2. PAYDAY DATES ====================
+   W is 14 days in milliseconds. sel is the payday the person stepped to (null = next payday).
+   PK is "which payday of the month" (1 = first) for the selected payday; deductions depend on it.
+   PF is the list of fields remembered separately for each payday (hours, extras, shift mode). */
+var W=12096e5,sel=null,PK=1,PF=["reg","night","ot","rdot","pto","other","oe","bon","days","ndp","shift"];
+/* Payday number i is anchor + i x 14 days. nextIdx() is the first payday that is today or later.
+   Dates are built in UTC on purpose so a time zone or daylight saving can never move a payday. */
+function anchorMs(){var p=(S.anchor||D.anchor).split("-");return Date.UTC(+p[0],p[1]-1,+p[2])}
+function nextIdx(){var n=new Date();return Math.ceil((Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())-anchorMs())/W)}
+function idx(){return sel===null?nextIdx():sel}
+function dateOf(i){return new Date(anchorMs()+i*W)}
+function key(){return dateOf(idx()).toISOString().slice(0,10)}
+/* stash() saves this payday's inputs into S.log under its date, but only if it already has an entry or you changed an hours field (so just looking at a payday saves nothing); load() brings them back.
+   load() ignores missing values, so entries saved before a field existed still load cleanly. */
+var BASE="";function snap(){var o={};PF.forEach(function(f){o[f]=S[f]});return JSON.stringify(o)}
+function stash(){if(!S.log[key()]&&snap()===BASE)return;var o={};PF.forEach(function(f){o[f]=S[f]});S.log[key()]=o}
+function load(){var o=S.log[key()];if(o)PF.forEach(function(f){if(o[f]!==undefined)S[f]=o[f]});else{S.oe=0;S.bon=0;S.other=0;S.pto=0;S.rdot=0}if(S.shift!=="cu")S.shift="auto";BASE=snap()}
+/* Draws the date and "1 of 2 this month" in the top bar and sets PK for calc(). */
+function showPay(){
+var i=idx(),d=dateOf(i),m=d.getUTCMonth(),k=1,c,j;
+for(j=i-1;dateOf(j).getUTCMonth()===m;j--)k++;
+c=k;for(j=i+1;dateOf(j).getUTCMonth()===m;j++)c++;
+PK=k;var ni=nextIdx(),st=i<ni?"Past payday":i===ni?"Next payday":"Upcoming payday";
+$("pdd").textContent=d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
+$("pds").textContent=st+", "+k+" of "+c+" this month";
+}
+/* go(n) moves n paydays forward or back (the arrows). Save the current payday first, then load the next. */
+function go(n){stash();sel=idx()+n;load();showPay();paint();calc();["pdd","pds"].forEach(function(i){fx($(i),[{transform:"translateX("+n*18+"px)",opacity:0},{transform:"none",opacity:1}],240)})}
+/* ==================== 3. SCREEN <-> STATE ====================
+   paint() copies S onto the screen. It skips the box being typed in, otherwise a half-typed
+   decimal such as "0." would be overwritten and the person could never type 0.48. */
+function paint(){
+NUM.forEach(function(k){if($(k)!==document.activeElement)$(k).value=S[k]});$("anchor").value=S.anchor;$("loanEnd").value=S.loanEnd;$("loanStart").value=S.loanStart;$("st").value=S.st;$("en").value=S.en;shiftSum();
+document.querySelectorAll(".seg").forEach(function(g){var k=g.getAttribute("data-seg");g.querySelectorAll("button").forEach(function(b){b.setAttribute("aria-pressed",b.getAttribute("data-v")===S[k])})});
+}
+/* ==================== 4. THE PAY MATHS (selected payday) ====================
+   Earnings: regular hours x rate; night differential; overtime; RDOT; PTO; allowances
+   (paid per day worked: monthly amount x 12 / 261 working days x days worked); holiday/bonus.
+   Deductions, learned from real payslips:
+     SSS         5% of THIS payday's gross rounded to the nearest 500 (floor 5,000, ceiling 35,000),
+                 taken every payday
+     PhilHealth  2.5% of monthly basic, first payday of the month only
+     Pag-IBIG    2% of that payday's gross on the first payday (cap 200 a month); the second payday pays what is left of the 200
+     Salary loan the same amount every payday from the "first loan deduction" date to the "last" one
+     Tax         annualised estimate, usually zero at these incomes
+   Result: gross, deductions and net, written into the table, the top number and the stats. */
+function calc(){
+var rate=S.rate,m=12/26;
+var E=[["Regular pay, "+S.reg+" hrs",S.reg*rate],["Night differential "+S.ndp+"%, "+S.night+" hrs",S.night*rate*S.ndp/100],["Overtime at "+S.otm+"%, "+S.ot+" hrs",S.ot*rate*S.otm/100],["RDOT at "+S.rdotm+"%, "+S.rdot+" hrs",S.rdot*rate*S.rdotm/100],["PTO, "+S.pto+" hrs",S.pto*rate],["Complexity allowance, "+S.days+" days",S.comp*12/261*S.days],["Rice allowance, "+S.days+" days",S.rice*12/261*S.days],["Holiday pay",S.oe],["Bonus or incentive",S.bon]].map(function(x){return[x[0],r2(x[1])]}).filter(function(x){return x[1]!==0});
+var gross=r2(E.reduce(function(a,x){return a+x[1]},0));
+var base=S.basic+(S.incl?S.comp+S.rice:0);
+var msc=clamp(Math.round(gross/500)*500,5000,35000);
+var sssP=msc*.05,phM=clamp(S.basic,10000,100000)*.025,pagM=Math.min(S.basic,10000)*.02;
+var on=S.cmode!=="none"&&gross>0,sss=on?sssP:0,ph=on&&PK===1?phM:0,pag=!on?0:PK===1?Math.min(pagM,gross*.02):PK===2?Math.max(0,pagM-Math.min(pagM,grossFor(idx()-1)*.02)):0;
+var annual=(gross-S.bon-Math.min(S.rice,2000)*12/261*S.days-(sss+ph+pag))*26;
+var tx=r2(tax(annual)/26);
+var Dd=[["SSS",r2(sss)],["PhilHealth",r2(ph)],["Pag-IBIG",r2(pag)],["Salary loan",r2(key()>=S.loanStart&&key()<=S.loanEnd?S.loan:0)],["Withholding tax, estimate",tx],["Other deduction",r2(S.other)]].filter(function(x){return x[1]!==0});
+var tded=r2(Dd.reduce(function(a,x){return a+x[1]},0));
+var net=r2(gross-tded);
+var mx=Math.max.apply(null,Dd.map(function(x){return x[1]}).concat([1]));var tr=function(a,neg){return a.map(function(x){return'<tr><th scope="row">'+x[0]+(neg?'<i class="bar" style="width:'+Math.round(x[1]/mx*100)+'%"></i>':"")+"</th><td>"+(neg?"−":"")+money(x[1])+"</td></tr>"}).join("")};
+$("earn").innerHTML=tr(E,false);$("ded").innerHTML=tr(Dd,true);
+$("gross").textContent=money(gross);$("tded").textContent="−"+money(tded);
+countTo(net);$("net2").textContent=money(net);$("net3").textContent=money(net);
+$("g1").textContent=money(gross);$("g2").textContent="−"+money(tded);$("g3").textContent=(gross>0?Math.round(clamp(net/gross*100,0,100)):0)+"%";
+$("avg").textContent="Averaged over a year, this payday is about "+money(r2(net*26/12))+" a month. Estimated taxable income: "+money(r2(Math.max(0,annual)))+" a year.";
+$("sum").textContent=money(S.basic)+" basic, "+money(S.rate)+" an hour";
+extras(gross,net);m13();
+}
+/* Counts the big take-home number up to its new value over about 450 ms. Skipped for reduce-motion. */
+var cur=0,raf;
+function countTo(v){var st=cur,t0=null,el=$("net");cancelAnimationFrame(raf);
+var draw=function(x){el.innerHTML=(x<0?"−":"")+'<span class="cur">₱</span>'+Math.abs(x).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})};
+if(matchMedia("(prefers-reduced-motion:reduce)").matches||Math.abs(v-st)<0.005){cur=v;draw(v);return}
+var step=function(t){if(t0===null)t0=t;var p=Math.min(1,(t-t0)/450);cur=st+(v-st)*(1-Math.pow(1-p,3));draw(cur);if(p<1)raf=requestAnimationFrame(step);else{cur=v;draw(v)}};raf=requestAnimationFrame(step)}
+var RM=matchMedia("(prefers-reduced-motion:reduce)").matches;function fx(el,kf,ms){if(RM||!el||!el.animate)return;el.animate(kf,{duration:ms,easing:"cubic-bezier(.2,.8,.2,1)"})}
+function buzz(){try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}}
+/* ==================== 6. THE "NEXT PAYDAYS" CHART ====================
+   BN = bars shown. WIN = payday index of the first bar. WOFF = how far the person paged the chart.
+   PG marks "the person paged on purpose", so the chart does not snap back to follow the selected payday. */
+var BN=8,WIN=0,WOFF=0,PG=false;
+function isoOf(i){return dateOf(i).toISOString().slice(0,10)}
+function pkOf(i){var m=dateOf(i).getUTCMonth(),k=1,j;for(j=i-1;dateOf(j).getUTCMonth()===m;j--)k++;return k}
+/* Take-home for ANY payday i, using that payday's saved hours if it has them, otherwise the current ones.
+   This repeats calc() in short form. Keep the two in step. One-off fields (holiday pay, extra deduction)
+   are only counted for paydays where the person entered them. */
+function pick(i){var now=i===idx(),lg=S.log[isoOf(i)];return{v:now?S:(lg||S),oth:now?S.other:(lg?lg.other:0),oe:now?S.oe:(lg?lg.oe:0),bon:now?S.bon:(lg?(lg.bon||0):0)}}
+function grossFor(i){var p=pick(i),v=p.v,rate=S.rate;
+return r2(v.reg*rate+v.night*rate*(v.ndp||S.ndp)/100+v.ot*rate*S.otm/100+(v.rdot||0)*rate*S.rdotm/100+v.pto*rate+(S.comp+S.rice)*12/261*v.days+p.oe+p.bon)}
+function netFor(i){var p=pick(i),v=p.v,g=grossFor(i),on=S.cmode!=="none"&&g>0,sP=clamp(Math.round(g/500)*500,5000,35000)*.05,phM=clamp(S.basic,10000,100000)*.025,pgM=Math.min(S.basic,10000)*.02,k=pkOf(i);
+var sss=on?sP:0,ph=on&&k===1?phM:0,pg=!on?0:k===1?Math.min(pgM,g*.02):k===2?Math.max(0,pgM-Math.min(pgM,grossFor(i-1)*.02)):0;
+var d=isoOf(i),loan=d>=S.loanStart&&d<=S.loanEnd?S.loan:0,an=(g-p.bon-Math.min(S.rice,2000)*12/261*v.days-(sss+ph+pg))*26;
+return r2(g-sss-ph-pg-loan-r2(tax(an)/26)-(p.oth||0))}
+function jump(i){stash();sel=i;load();showPay();paint();calc()}
+/* Called at the end of every calc(). Builds the bars once, then only updates them, so the bars animate
+   smoothly instead of being rebuilt. Also writes the caption (for example when the loan stops). */
+function extras(gross,net){
+
+var ni=nextIdx(),host=$("bars"),i,vals=[],base=ni-1,cx=idx();
+if(!PG){if(cx<base+WOFF)WOFF=cx-base;else if(cx>base+WOFF+BN-1)WOFF=cx-base-BN+1}PG=false;
+WIN=base+WOFF;$("cnow").hidden=WOFF===0;
+for(i=0;i<BN;i++)vals.push(netFor(WIN+i));
+var mx=Math.max.apply(null,vals.concat([1]));
+if(!host.children.length)for(i=0;i<BN;i++)(function(i){var b=document.createElement("button");b.type="button";b.className="col";b.style.setProperty("--i",i);b.innerHTML='<span class="bv"></span><span class="bc"><i></i></span><span class="bd"></span>';b.addEventListener("click",function(){buzz();jump(WIN+i)});host.appendChild(b)})(i);
+var fm=function(d,o){o.timeZone="UTC";return d.toLocaleDateString("en-US",o)};
+for(i=0;i<BN;i++){var b=host.children[i],ix=WIN+i,d=dateOf(ix),v=vals[i];
+b.classList.toggle("on",ix===idx());b.classList.toggle("past",ix<ni);
+b.querySelector(".bv").textContent=v>=1000?(v/1000).toFixed(1)+"k":String(Math.round(v));
+b.querySelector("i").style.transform="scaleY("+(v/mx)+")";
+b.querySelector(".bd").textContent=fm(d,{month:"short"})+"\n"+d.getUTCDate();
+b.setAttribute("aria-label",fm(d,{weekday:"long",month:"long",day:"numeric"})+", take-home "+money(v)+(ix<ni?", already paid":""));
+b.setAttribute("aria-pressed",ix===idx()?"true":"false")}
+var cap="Take-home at this payday\u2019s hours. First paydays of the month are lower because PhilHealth and Pag-IBIG come out then.";
+if(S.loan>0){i=ni;while(isoOf(i)<=S.loanEnd&&i<ni+80)i++;if(i<WIN+BN)cap+=" From "+fm(dateOf(i),{month:"short",day:"numeric"})+" the salary loan stops, adding "+money(S.loan)+" per payday."}
+$("bcap").textContent=cap+" Swipe the chart or use the arrows for more paydays."}
+/* Every change ends in save(): remember this payday's inputs, then store everything in localStorage.
+   The try/catch matters: some private-browsing modes refuse storage and the page must still work. */
+function save(){stash();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+/* ==================== 5. SHIFT SCHEDULE -> NIGHT HOURS ====================
+   From the shift start, end and unpaid break we work out paid hours per shift and how many of
+   them fall in the 10PM-6AM night window. Night hours for the payday = regular hours x that share.
+   The three windows (midnight-6AM, 10PM-6AM next day, and the day after) cover shifts that cross midnight. */
+function tm(s){var p=(s||"0:0").split(":");return(+p[0]||0)*60+(+p[1]||0)}
+function nightPer(){var a=tm(S.st),b=tm(S.en);if(b<=a)b+=1440;var paid=Math.max(0,(b-a)/60-S.br),ov=0;
+[[0,360],[1320,1800],[2760,3240]].forEach(function(w){ov+=Math.max(0,Math.min(b,w[1])-Math.max(a,w[0]))});
+ov=ov/60;return{paid:paid,night:Math.min(ov,paid)}}
+function shiftSum(){var p=nightPer();$("shsum").textContent=r2(p.paid)+" paid hours a shift, "+r2(p.night)+" of them at night differential"}
+/* If night hours are set "from schedule", recompute them; if the person chose Custom, leave them alone. */
+function autoNight(){if(S.shift!=="cu"){var p=nightPer();S.night=r2(p.paid>0?S.reg*p.night/p.paid:0)}}
+function setField(k,v,fromInput){
+S[k]=v;
+if(!fromInput)$(k).value=v;
+if(k==="basic"){S.rate=r2(S.basic*12/2088);$("rate").value=S.rate}
+if(k==="rate"){S.basic=r2(S.rate*2088/12);$("basic").value=S.basic}
+if(k==="reg"||k==="br"){autoNight();$("night").value=S.night}
+if(k==="night")S.shift="cu";
+paint();save();calc();
+}
+/* ==================== 6b. 13TH MONTH PAY ====================
+   Law: total BASIC pay earned in the calendar year / 12. Basic = regular and paid-leave hours at the hourly rate.
+   Night differential, overtime, RDOT, allowances and holiday pay are NOT basic. Tax-free up to 90,000 together with other bonuses; due by Dec 24.
+   Basic pay so far = saved paydays (S.log) plus anything typed in (S.ytdb); the paydays left are projected from their saved hours, or from the average of your last 4 saved paydays.
+   shortcut: pay is counted by pay-out date and a payday only counts once saved. A company that counts by work period may differ slightly, so check HR\u2019s figure. */
+function m13(){
+var t=new Date(),pi=Math.floor((Date.UTC(t.getFullYear(),t.getMonth(),t.getDate())-anchorMs())/W),yr=t.getFullYear(),i,n=0,rest=0,first=pi+1,last=pi,sv=0,sc=0,sil=0,bs=0,lg,hs=[],unsaved=false;
+for(i=pi;dateOf(i).getUTCFullYear()===yr;i--){lg=S.log[isoOf(i)];if(lg){hs.push((lg.reg||0)+(lg.pto||0));sv+=((lg.reg||0)+(lg.pto||0))*S.rate;sil+=(lg.pto||0)*S.rate;bs+=(lg.bon||0);sc++}else if(i===pi)unsaved=true}
+var kk=Math.min(4,hs.length),avg=kk?hs.slice(0,kk).reduce(function(a,x){return a+x},0)/kk:(S.reg||0)+(S.pto||0);
+if(unsaved){rest+=avg*S.rate;n++;first=pi;last=pi}
+for(i=pi+1;dateOf(i).getUTCFullYear()===yr;i++){lg=S.log[isoOf(i)];rest+=(lg?(lg.reg||0)+(lg.pto||0):avg)*S.rate;n++;last=i}
+var base=sv+S.ytdb,tot=base+rest,real=r2(tot/12),quick=r2((S.reg+S.pto)*S.rate*26/12),use=base>0?real:quick;
+var fm=function(d){return d.toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"})};
+var L=function(a,b){return'<tr><th scope="row">'+a+'</th><td>'+b+'</td></tr>'};
+$("m13").textContent=money(use);
+$("m13h").textContent=base>0?"Estimated for "+yr+", from your saved paydays plus the paydays left":"Rough estimate for "+yr+". Save your paydays or enter basic pay so far for a better one";
+$("m13d").innerHTML=(base>0?(sc?L("Basic pay from "+sc+" saved paydays",money(r2(sv))):"")+(S.ytdb>0?L("Other basic pay you typed",money(r2(S.ytdb))):"")+(n?L("Basic pay for the "+n+(n===1?" payday":" paydays")+" left ("+fm(dateOf(first))+" to "+fm(dateOf(last))+"), about "+r2(avg)+" hrs each if not saved",money(r2(rest))):"")+L("Total basic pay for the year",money(r2(tot)))+L("Divided by 12",money(real))+(sil?L("Paid leave (PTO) counted in the total",money(r2(sil))):""):L("This payday\u2019s basic pay x 26 paydays \u00f7 12",money(quick)))+(bs?L("Bonuses and incentives so far (they share the \u20b190,000)",money(r2(bs))):"")+L("Taxable part (above \u20b190,000)",money(Math.max(0,r2(use+bs-90000))))}
+/* ==================== 7. WIRING THE SCREEN ====================
+   One listener per number box, one for the +/- buttons, one for the segmented buttons.
+   Because box id = key in S, no field needs its own special code. */
+NUM.forEach(function(k){var el=$(k);
+el.addEventListener("input",function(){setField(k,parseFloat(el.value)||0,true)});
+el.addEventListener("focus",function(){el.select()});el.setAttribute("enterkeyhint","done");el.addEventListener("keydown",function(e){if(e.key==="Enter")el.blur()});
+});
+document.querySelectorAll(".st").forEach(function(w){var k=w.getAttribute("data-f"),s=parseFloat(w.getAttribute("data-s")),b=w.querySelectorAll("button");
+b[0].addEventListener("click",function(){buzz();fx($(k),[{transform:"translateY(-6px)",opacity:.4},{transform:"none",opacity:1}],170);setField(k,r2(Math.max(0,S[k]-s)))});
+b[1].addEventListener("click",function(){buzz();fx($(k),[{transform:"translateY(6px)",opacity:.4},{transform:"none",opacity:1}],170);setField(k,r2(S[k]+s))});
+});
+document.querySelectorAll(".seg").forEach(function(g){var k=g.getAttribute("data-seg");
+g.querySelectorAll("button").forEach(function(b){b.addEventListener("click",function(){
+S[k]=b.getAttribute("data-v");
+if(k==="shift"){autoNight();$("night").value=S.night}
+paint();save();calc()})})});
+
+$("reset").addEventListener("click",function(){S=Object.assign({},D);S.log={};sel=null;showPay();paint();save();calc()});
+S.log=S.log||{};if(S.shift==="n3"&&!S.st2){S.st="03:00";S.en="12:00"}S.st2=1;if(S.shift!=="cu")S.shift="auto";
+load();showPay();
+$("cp").addEventListener("click",function(){WOFF-=4;PG=true;calc()});
+$("cn").addEventListener("click",function(){WOFF+=4;PG=true;calc()});
+$("cnow").addEventListener("click",function(){WOFF=0;PG=true;calc()});
+(function(){var x0=null,h=$("bars");h.addEventListener("touchstart",function(e){x0=e.touches[0].clientX},{passive:true});h.addEventListener("touchend",function(e){if(x0===null)return;var dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>50){WOFF+=dx<0?4:-4;PG=true;calc()}},{passive:true})})();
+$("pp").addEventListener("click",function(){go(-1)});
+$("pn").addEventListener("click",function(){go(1)});
+["st","en"].forEach(function(i){$(i).addEventListener("change",function(){if(!$(i).value)return;S[i]=$(i).value;autoNight();$("night").value=S.night;paint();save();calc()})});
+$("loanEnd").addEventListener("change",function(){if(!$("loanEnd").value)return;S.loanEnd=$("loanEnd").value;save();calc()});
+$("loanStart").addEventListener("change",function(){if(!$("loanStart").value)return;S.loanStart=$("loanStart").value;save();calc()});
+$("anchor").addEventListener("change",function(){var v=$("anchor").value;if(!v)return;stash();S.anchor=v;sel=null;load();showPay();paint();save();calc()});
+
+document.addEventListener("keydown",function(e){var t=e.target.tagName;if(t==="INPUT"||t==="TEXTAREA"||t==="SELECT"||e.metaKey||e.ctrlKey||e.altKey)return;if(e.key==="ArrowLeft")go(-1);else if(e.key==="ArrowRight")go(1)});
+document.body.classList.add("boot");setTimeout(function(){document.body.classList.remove("boot")},1200);
+
+paint();calc();
+/* ==================== 9. PAYSLIP IMPORT ====================
+   Turns payslip PDFs into the same per-payday record the Hours tab saves (S.log, keyed by pay-out date).
+   slipText() reads the words out of a PDF with pdf.js (loaded from cdnjs only when needed), parseSlip() is a pure
+   function (text in, record out) so it can be tested without a browser, and impDraw() shows a check screen.
+   Nothing is saved until the person presses Save. Names and ID numbers are never read.
+   How the fields are found: basic pay and basic-pay adjustments -> reg; Service Incentive Leave -> pto; night
+   differential (plus its adjustment line) -> night; Total Overtime -> ot; Total Holiday amount -> oe;
+   non-taxable earnings minus the rice allowance -> bon; other deductions minus any "Loan" line -> other;
+   days worked = prorated complexity allowance / one day of it. The check: the imported fields are priced with the
+   calculator's own formula and compared with the payslip's gross; a gap over 2 pesos is flagged. */
+var PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/",IMP=[];
+var MONTHS={january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11};
+function nm(s){return parseFloat(String(s).replace(/,/g,""))}
+/* parseSlip(text, cx): text = the payslip's words in reading order, cx = {rate, comp, rice, otm}.
+   Returns {err} or {key, rec, g, net, rate, calcGross, warn[]}. rec has exactly the fields the Hours tab saves. */
+function parseSlip(raw,cx){
+var t=String(raw).replace(/\s+/g," "),c=t.indexOf("TIME BASED DETAILS"),E=c>0?t.slice(0,c):t,w=[],m,
+N="([\\d,]+\\.\\d\\d)",H="(-?\\d+\\.\\d\\d)",A="(-?[\\d,]+\\.\\d\\d)";
+m=E.match(/Payslip for the Period\s+([A-Za-z]+)\s+(\d+)\s+(\d{4})\s*-\s*([A-Za-z]+)\s+(\d+)\s+(\d{4})\s*\(Pay-out:\s*([A-Za-z]+)\s+(\d+)\s+(\d{4})\)/);
+if(!m||MONTHS[m[7].toLowerCase()]===undefined)return{err:"This does not look like a payslip I can read"};
+var pad=function(x){return(x<10?"0":"")+x},key=m[9]+"-"+pad(MONTHS[m[7].toLowerCase()]+1)+"-"+pad(+m[8]);
+var per=m[1].slice(0,3)+" "+m[2]+" to "+m[4].slice(0,3)+" "+m[5];
+var sum=function(re,g){var r=new RegExp(re,"g"),x,a=0;while((x=r.exec(E)))a+=nm(x[g]);return a};
+var one=function(re){var x=E.match(new RegExp(re));return x?nm(x[1]):null};
+var r2=function(x){return Math.round(x*100)/100},f2=function(x){return x.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})};
+var rt=one("Hourly Salary:\\s*([\\d.]+)");
+var reg=sum("(?:^|[^A-Za-z*])BASIC PAY\\s+"+H+"\\s+"+A,1)+sum("BASIC PAY ADJUSTMENT\\s+"+H+"\\s+"+A,1);
+var pto=sum("SERVICE INCENTIVE LEAVE\\s+"+H+"\\s+"+A,1);
+var ndH=sum("Total Night Differential\\s+"+H+"\\s+"+A,1),ndA=sum("Total Night Differential\\s+"+H+"\\s+"+A,2);
+var ndAdj=sum("REGULAR NIGHT\\s+DIFFERENTIAL ADJUSTMENT\\s+"+H+"\\s+"+A,1)+sum("REGULAR NIGHT\\s+"+H+"\\s+"+A+"\\s+DIFFERENTIAL ADJUSTMENT",1);
+var ot=sum("Total Overtime\\s+"+H+"\\s+"+A,1),oe=sum("Total Holiday\\s+"+H+"\\s+"+A,2);
+var B=one("TOTAL NON-TAXABLE EARNINGS \\(B\\)\\s+"+N),Ed=one("TOTAL OTHER DEDUCTIONS \\(E\\)\\s+"+N),G=one("GROSS EARNINGS \\(G\\)\\s*\\(A\\+B\\+C\\)\\s+"+N),NET=one("NET EARNINGS \\(G-H\\)\\s+"+N);
+var comp=one("COMPLEXITY ALLOWANCE\\s*-\\s*(?:PRORATED\\s+)?"+N),rice=one("RICE ALLOWANCE\\s+(?:PRORATED\\s+)?"+N);
+var loan=sum("Loan\\s+"+N,1);
+if(G===null)return{err:"Could not find the gross pay on this payslip"};
+var days=null;if(comp!==null&&cx.comp>0)days=Math.round(comp/(cx.comp*12/261));else if(rice!==null&&cx.rice>0)days=Math.round(rice/(cx.rice*12/261));
+if(days===null){days=10;w.push("No allowance line found, so days worked is set to 10")}
+days=Math.max(0,Math.min(14,days));
+var ndp=ndH>0&&rt?Math.round(ndA/(ndH*rt)*20)*5:(key>="2026-09-11"?15:10);if(!(ndp>0))ndp=key>="2026-09-11"?15:10;
+var bon=B!==null?Math.max(0,r2(B-(rice||0))):0,other=Ed!==null?Math.max(0,r2(Ed-loan)):0;
+var rec={reg:r2(reg),night:r2(ndH+ndAdj),ot:r2(ot),rdot:0,pto:r2(pto),other:other,oe:r2(oe),days:days,shift:"cu",ndp:ndp,bon:bon};
+var calcGross=r2(rec.reg*cx.rate+rec.night*cx.rate*rec.ndp/100+rec.ot*cx.rate*cx.otm/100+rec.pto*cx.rate+(cx.comp+cx.rice)*12/261*rec.days+rec.oe+rec.bon);
+if(Math.abs(calcGross-G)>2)w.push("Imported hours add up to \u20b1"+f2(calcGross)+" but the payslip gross is \u20b1"+f2(G)+". Something on it was not recognised, so check the numbers");
+if(rt&&Math.abs(rt-cx.rate)>.005)w.push("Payslip hourly rate \u20b1"+f2(rt)+" is not the rate in Settings (\u20b1"+f2(cx.rate)+")");
+return{key:key,per:per,rec:rec,g:G,net:NET,rate:rt,calcGross:calcGross,loan:loan,warn:w};
+}
+
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+/* Index of a pay-out date on the 14-day payday pattern, or null if it is not on it. */
+function gridIdx(k){var p=k.split("-"),x=(Date.UTC(+p[0],p[1]-1,+p[2])-anchorMs())/W;return x===Math.round(x)?x:null}
+function dlabel(k){var p=k.split("-");return new Date(Date.UTC(+p[0],p[1]-1,+p[2])).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"})}
+function readAB(f){return new Promise(function(ok,no){var r=new FileReader();r.onload=function(){ok(r.result)};r.onerror=function(){no(r.error)};r.readAsArrayBuffer(f)})}
+function loadPdfJs(){return new Promise(function(ok,no){if(window.pdfjsLib){ok();return}var s=document.createElement("script");s.src=PDFJS+"pdf.min.js";
+s.onload=function(){try{pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+"pdf.worker.min.js";ok()}catch(e){no(e)}};
+s.onerror=function(){no(new Error("could not load the PDF reader, check your connection"))};document.head.appendChild(s)})}
+/* Words of every page, row by row (items on the same line share a y position), left to right. */
+async function slipText(file){
+await loadPdfJs();
+var task=pdfjsLib.getDocument({data:new Uint8Array(await readAB(file))});
+task.onPassword=function(up,why){var p=window.prompt(why===2?"Wrong password. Try again:":"This PDF is password protected. Enter its password:");if(p===null)task.destroy();else up(p)};
+var pdf=await task.promise,out=[];
+for(var n=1;n<=pdf.numPages;n++){var tc=await(await pdf.getPage(n)).getTextContent(),rows=[];
+tc.items.forEach(function(it){if(!it.str||!it.str.trim())return;var y=it.transform[5],r=rows.find(function(q){return Math.abs(q.y-y)<2.5});if(!r){r={y:y,it:[]};rows.push(r)}r.it.push([it.transform[4],it.str])});
+rows.sort(function(a,b){return b.y-a.y});
+rows.forEach(function(r){r.it.sort(function(a,b){return a[0]-b[0]});out.push(r.it.map(function(i){return i[1]}).join(" "))})}
+return out.join("\n")}
+async function importFiles(list){
+var files=Array.prototype.slice.call(list||[]),box=$("impr"),seen={},n,f,r;IMP=[];
+if(!files.length)return;
+for(n=0;n<files.length;n++){box.textContent="Reading "+(n+1)+" of "+files.length+"…";f=files[n];
+try{r=parseSlip(await slipText(f),{rate:S.rate,comp:S.comp,rice:S.rice,otm:S.otm})}catch(e){r={err:"Could not read this PDF"+(e&&e.message?" ("+e.message+")":"")}}
+r.name=f.name;
+if(!r.err){r.idx=gridIdx(r.key);if(r.idx===null)r.err="Pay-out date "+dlabel(r.key)+" is not on your payday pattern. Check \"Payday pattern starts\" in Settings";else if(seen[r.key])r.err="Same payday as another file";else seen[r.key]=1}
+IMP.push(r)}
+impDraw("review")}
+function recLine(x){var o=[x.reg+" regular hrs"];if(x.night)o.push(x.night+" night hrs");if(x.ot)o.push(x.ot+" OT hrs");if(x.pto)o.push(x.pto+" PTO hrs");if(x.oe)o.push("holiday "+money(x.oe));if(x.bon)o.push("bonus "+money(x.bon));if(x.other)o.push("extra deduction "+money(x.other));return o.join(", ")}
+function impDraw(mode){
+var ok=IMP.filter(function(r){return!r.err}).sort(function(a,b){return a.key<b.key?-1:1}),bad=IMP.filter(function(r){return r.err}),h="";
+var head=mode==="done"?"Saved. The net pay below is what this calculator gives for each payday, next to the payslip.":"Check these, then save. Nothing has been saved yet.";
+h+='<p class="sub" style="margin-top:12px">'+head+"</p><table class=\"led\"><caption class=\"sr\">Payslips read</caption><tbody>";
+ok.forEach(function(r){var st,d=S.log[r.key]&&mode!=="done"?"<small>Replaces the hours already saved for this payday</small>":"",w=r.warn.map(function(x){return'<small class="w">'+esc(x)+"</small>"}).join("");
+if(mode==="done"){var df=r.cn-r.net;st=r.net==null?money(r.cn):money(r.cn)+"<small>Payslip "+money(r.net)+(Math.abs(df)<=1?", within ₱1":", "+(df>0?"+":"−")+money(Math.abs(df)))+"</small>"}
+else st=r.warn.length?"Check":"Gross matches";
+h+='<tr><th scope="row">'+dlabel(r.key)+"<small>"+esc(r.per)+": "+esc(recLine(r.rec))+"</small>"+(mode==="done"?"":d+w)+"</th><td>"+st+"</td></tr>"});
+bad.forEach(function(r){h+='<tr><th scope="row">'+esc(r.name||"File")+'<small class="w">Skipped: '+esc(r.err)+"</small></th><td></td></tr>"});
+h+='</tbody></table><div class="bar">'+(mode==="done"?'<button type="button" data-a="x">Done</button>':(ok.length?'<button type="button" class="go" data-a="save">Save '+ok.length+" payslip"+(ok.length>1?"s":"")+'</button>':"")+'<button type="button" data-a="x">'+(ok.length?"Cancel":"Close")+"</button>")+"</div>";
+$("impr").innerHTML=h}
+function impSave(){var ok=IMP.filter(function(r){return!r.err});
+ok.forEach(function(r){S.log[r.key]=r.rec});
+load();showPay();paint();save();calc();
+ok.forEach(function(r){r.cn=netFor(r.idx)});impDraw("done")}
+$("impb").addEventListener("click",function(){$("impf").click()});
+$("impf").addEventListener("change",function(){var el=this;importFiles(el.files).then(function(){el.value=""})});
+$("impr").addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("button");if(!b)return;if(b.getAttribute("data-a")==="save")impSave();else{IMP=[];$("impr").innerHTML=""}});
+/* ==================== 8. TABS AND SETTINGS PANEL ====================
+   The phone tab bar only sets body[data-tab]; CSS shows or hides the sections.
+   On wide screens the tab bar is hidden and Settings is a slide-out panel instead. */
+function tab(t){document.body.dataset.tab=t;document.querySelectorAll(".tabs button").forEach(function(b){if(b.dataset.t===t)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});window.scrollTo(0,0)}
+document.querySelectorAll(".tabs button").forEach(function(b){b.addEventListener("click",function(){tab(b.dataset.t)})});
+function pop(o){document.body.classList.toggle("pop",o);$("gear").setAttribute("aria-expanded",o);if(o)$("sclose").focus()}
+$("gear").addEventListener("click",function(){pop(!document.body.classList.contains("pop"))});
+$("scrim").addEventListener("click",function(){pop(false)});$("sclose").addEventListener("click",function(){pop(false)});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")pop(false)});
+tab(S.rate>0?"pay":"set");
+var DP=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();DP=e;$("inst").hidden=false});
+$("inst").addEventListener("click",function(){if(DP){DP.prompt();DP=null;$("inst").hidden=true}});
+if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname==="localhost")){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+if(S.rate<=0&&matchMedia("(min-width:900px)").matches)pop(true);
+</script>
+</body>
+</html>

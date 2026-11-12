@@ -1,0 +1,14 @@
+0000000000000000000000000000000000000000 5572cc52ef10c0e8ea3cafb6f15b9a13e1801d31 skye07589-debug <skye07589-debug@users.noreply.github.com> 1793653005 +0000	commit (initial): Add payday calculator
+5572cc52ef10c0e8ea3cafb6f15b9a13e1801d31 0000000000000000000000000000000000000000 skye07589-debug <skye07589-debug@users.noreply.github.com> 1793653005 +0000	Branch: renamed refs/heads/master to refs/heads/main
+0000000000000000000000000000000000000000 5572cc52ef10c0e8ea3cafb6f15b9a13e1801d31 skye07589-debug <skye07589-debug@users.noreply.github.com> 1793653005 +0000	Branch: renamed refs/heads/master to refs/heads/main
+5572cc52ef10c0e8ea3cafb6f15b9a13e1801d31 eb22de96ba252e3f56c082e6172576fd50d85f12 skye07589-debug <skye07589-debug@users.noreply.github.com> 1793687102 +0000	commit: Improve layout for phones and desktop
+eb22de96ba252e3f56c082e6172576fd50d85f12 7342dbcb88a4ee310c8eebb34850e38d9622f0d9 skye07589-debug <skye07589-debug@users.noreply.github.com> 1793737027 +0000	commit: Bento layout, payday chart, installable app
+7342dbcb88a4ee310c8eebb34850e38d9622f0d9 3739a26b3742571f3e85f6a25773b3ba29e6a3a4 skye07589-debug <skye07589-debug@users.noreply.github.com> 1793762267 +0000	commit: Calmer colors, pageable payday chart
+3739a26b3742571f3e85f6a25773b3ba29e6a3a4 6381b4ed0549010671be5c7ea94e900fd5d2eeee skye07589-debug <skye07589-debug@users.noreply.github.com> 1793833274 +0000	commit: Sage redesign with Pay, Hours and Settings tabs
+6381b4ed0549010671be5c7ea94e900fd5d2eeee f2634e7634fca9da5f57304d08bf65467ec90494 skye07589-debug <skye07589-debug@users.noreply.github.com> 1793834963 +0000	commit: Add RDOT hours and rate
+f2634e7634fca9da5f57304d08bf65467ec90494 05592ac1f298d0ed2a2dab405383ab6d2889435e skye07589-debug <skye07589-debug@users.noreply.github.com> 1793849637 +0000	commit: Add explanatory notes to the code
+05592ac1f298d0ed2a2dab405383ab6d2889435e 1dc36dd23a2a40cb70598f03c6da9c2033df3f94 skye07589-debug <skye07589-debug@users.noreply.github.com> 1793882587 +0000	commit: Add 13th month pay estimate
+1dc36dd23a2a40cb70598f03c6da9c2033df3f94 5e7debc23b5880fa8eacbc11735d455302586f8f skye07589-debug <skye07589-debug@users.noreply.github.com> 1793925372 +0000	commit: 13th month from saved paydays, loan start, per-payday night rate, bonuses
+5e7debc23b5880fa8eacbc11735d455302586f8f a2c352ba855d722449270dec1d34b895e8dddea0 skye07589-debug <skye07589-debug@users.noreply.github.com> 1793925530 +0000	commit: 13th month counts today's payday as paid
+a2c352ba855d722449270dec1d34b895e8dddea0 0b3deb30e4d7284e8e581f4884403a4f536f5fbb skye07589-debug <skye07589-debug@users.noreply.github.com> 1794350567 +0000	commit: Add payslip import
+0b3deb30e4d7284e8e581f4884403a4f536f5fbb 6fb72916b0b9f8ffd19064af57d227db17c163fa skye07589-debug <skye07589-debug@users.noreply.github.com> 1794444179 +0000	commit: Looking at a payday no longer saves it
