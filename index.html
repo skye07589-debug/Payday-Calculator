@@ -4,7 +4,7 @@
   ==================================
   One self-contained file. HTML = structure, CSS = looks, JavaScript = the maths.
   No framework, no build step, no server. Everything a person types is saved in
-  their own browser (localStorage) and never sent anywhere.
+  their own browser (localStorage). The app does not send these entries to the operator.
 
   WHAT IT DOES
   Estimates take-home pay for ONE payday at a time, for a Philippine BPO payslip
@@ -596,5 +596,12 @@ $("inst").addEventListener("click",function(){if(DP){DP.prompt();DP=null;$("inst
 if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname==="localhost")){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
 if(S.rate<=0&&matchMedia("(min-width:900px)").matches)pop(true);
 </script>
+<footer style="max-width:1120px;margin:0 auto;padding:18px 20px 104px;text-align:center;font:12px/1.6 Inter,Arial,sans-serif;color:var(--mute)">
+  <span>Payday Calculator</span>
+  <span aria-hidden="true"> · </span><a href="terms.html" style="color:inherit">Terms</a>
+  <span aria-hidden="true"> · </span><a href="privacy.html" style="color:inherit">Privacy</a>
+  <span aria-hidden="true"> · </span><a href="disclaimer.html" style="color:inherit">Disclaimer</a>
+</footer>
 </body>
 </html>
+

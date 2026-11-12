@@ -1,25 +1,30 @@
-# Payday calculator
+# Payday Calculator
 
-A phone-friendly calculator that estimates take-home pay for a Philippine BPO payslip paid every other Friday.
+A browser-based calculator for estimating Philippine BPO take-home pay on every-other-Friday paydays.
 
-- Set your shift start, end and unpaid break, and the night differential hours are worked out for you.
-- A chart shows take-home for the next eight paydays; tap a bar to open that payday.
-- Step through paydays with the arrow buttons or the left and right arrow keys; each payday remembers its own hours.
-- **Import payslips:** pick Concentrix payslip PDFs on the Hours tab. The numbers are read on your device, you check them, then save. Set your hourly rate and allowances in Settings first.
-- Handles SSS, PhilHealth and Pag-IBIG timing, prorated allowances, overtime, holiday pay or bonus, and a salary loan with an end date.
+## Features
+
+- Estimates gross pay, deductions and take-home pay.
+- Tracks hours, overtime, night differential, allowances, holidays and salary-loan deductions.
+- Shows the next eight paydays.
+- Imports supported payslip PDFs. The PDF is read in your browser, and you review the extracted figures before saving.
+- Saves calculator entries in your browser storage. There is no app account or operator-side payroll database.
 
 ## Using it
 
-Open the page, then enter your basic pay and allowances under **Pay settings**. Everything is saved in your own browser. Nothing is sent anywhere, and there is no account or server.
+Open the website and enter your basic pay and allowances under Pay settings. Your entries stay in browser storage on your device. The app does not send your salary entries or imported PDF files to the operator.
+
+The website loads Google Fonts from Google. When you import a PDF, it loads the PDF.js library from cdnjs. The website is hosted by GitHub Pages, which receives ordinary website requests. See the [Privacy Policy](privacy.html) for details.
 
 ## Install it like an app
 
-- **iPhone (Safari):** tap Share, then **Add to Home Screen**.
-- **Android (Chrome):** tap the menu, then **Install app**, or use the **Install this app** link in Pay settings.
+- iPhone (Safari): tap Share, then Add to Home Screen.
+- Android (Chrome): tap the menu, then Install app, or use the Install this app link in Pay settings.
 
-After the first visit it also opens without internet.
+After the first visit, the app also opens offline. Offline availability depends on your browser's cache and storage settings.
 
-## Notes
+## Important
 
-The deduction rules were built from one employee’s Jul–Oct 2026 payslips, so results are estimates. Your payslip is the final word.
+The calculator provides estimates, not official payroll results. The deduction rules were built from limited historical payslip examples and might not match your employer's current payroll rules. Your official payslip and payroll department are the final references.
 
+Read the [Terms and Conditions](terms.html), [Privacy Policy](privacy.html) and [Payroll Disclaimer](disclaimer.html).
