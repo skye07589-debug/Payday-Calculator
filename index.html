@@ -75,15 +75,17 @@
 <meta charset="utf-8">
 <title>Payday calculator</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Inter:wght@400;600&display=swap">
 <style>
 /* ==================== 1. COLOUR AND SIZE TOKENS ====================
-   Change the look here. One soft sage green on a light page; a muted dark set follows the phone's
+   Change the look here. Sunrise hero, violet controls, warm paper; a muted dark set follows the phone's
    setting. Bar charts and buttons read these names, so nothing else needs editing for a re-skin.
    The dark values are written twice on purpose: once for "phone is set to dark" and once for a forced dark theme. */
-:root{--maxw:1120px;--ease:cubic-bezier(.2,.8,.2,1);--spring:cubic-bezier(.34,1.56,.64,1);--bg:#F7F8F4;--sf2:#EAF0E6;--ink:#1B261E;--mute:#566259;--line:#DDE3DA;--neg:#B5483A;--bar:#B3C4AE;--sel:#3F6247;--onsel:#fff;--sage:#DDE8D6;--ring:#3F6247;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);-webkit-text-size-adjust:100%}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101612;--sf2:#1F2A23;--ink:#E9EFE7;--mute:#9DAA9F;--line:#27322B;--neg:#E88F82;--bar:#3A4A3F;--sel:#A8C9A6;--onsel:#101612;--sage:#22302A;--ring:#A8C9A6;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#101612;--sf2:#1F2A23;--ink:#E9EFE7;--mute:#9DAA9F;--line:#27322B;--neg:#E88F82;--bar:#3A4A3F;--sel:#A8C9A6;--onsel:#101612;--sage:#22302A;--ring:#A8C9A6;color-scheme:dark}
+:root{--maxw:1120px;--measure:560px;--ease:cubic-bezier(.2,.8,.2,1);--spring:cubic-bezier(.34,1.56,.64,1);--bg:#FFFBF5;--sf2:#F3EDFF;--ink:#241638;--mute:#65587A;--line:#E9DFF7;--neg:#B5483A;--bar:#C9B8F5;--sel:#5B2EE6;--onsel:#fff;--sage:#EADFFF;--ring:#5B2EE6;--hero1:#FFD76A;--hero2:#FF9A62;--hero-ink:#241638;--hero-mute:#4A3560;--c1:#FF6B4A;--c2:#FFC83D;--c3:#2FB0E8;--c4:#E0489A;--c5:#8B7FA6;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);-webkit-text-size-adjust:100%}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#140E22;--sf2:#241A3A;--ink:#F4EEFF;--mute:#B3A5CC;--line:#33264F;--neg:#E88F82;--bar:#4B3A7A;--sel:#B79CFF;--onsel:#140E22;--sage:#2D2150;--ring:#B79CFF;--hero1:#3A2B7D;--hero2:#7B2F74;--hero-ink:#FFF4E6;--hero-mute:#DCCBF0;--c1:#FF8F7A;--c2:#FFD166;--c3:#5CC8F2;--c4:#F06BB3;--c5:#A99CC4;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#140E22;--sf2:#241A3A;--ink:#F4EEFF;--mute:#B3A5CC;--line:#33264F;--neg:#E88F82;--bar:#4B3A7A;--sel:#B79CFF;--onsel:#140E22;--sage:#2D2150;--ring:#B79CFF;--hero1:#3A2B7D;--hero2:#7B2F74;--hero-ink:#FFF4E6;--hero-mute:#DCCBF0;--c1:#FF8F7A;--c2:#FFD166;--c3:#5CC8F2;--c4:#F06BB3;--c5:#A99CC4;color-scheme:dark}
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 120px)}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-feature-settings:"tnum" 1;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
@@ -107,7 +109,13 @@ body:not([data-tab="pay"]) .mini{display:flex}
    Phone: each section is a "panel" and only the active tab's panel shows (see the max-width rule near the end).
    Wide screens (900px and up): Hours and Pay sit side by side, the tab bar disappears and Settings slides in. */
 .panel{max-width:var(--maxw);margin:0 auto;padding:20px 16px;animation:rise .35s var(--ease)}
-.hero{background:var(--sage);margin:-20px -16px 0;padding:24px 16px 26px}
+h1,h2,h3{text-wrap:balance}
+.hero{--ink:var(--hero-ink);--mute:var(--hero-mute);color:var(--ink);background:linear-gradient(135deg,var(--hero1),var(--hero2));margin:-20px -16px 0;padding:24px 16px 26px}
+.htop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.htop .lab{margin-top:6px}
+.cd{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px;font-size:.6875rem;line-height:1.1;font-weight:600}
+.cd .rg{position:relative;width:52px;height:52px}.cd svg{width:52px;height:52px;transform:rotate(-90deg)}
+.cd .t{fill:none;stroke:var(--ink);stroke-opacity:.18;stroke-width:5}.cd .p{fill:none;stroke:var(--ink);stroke-width:5;stroke-linecap:round;stroke-dasharray:125.66;transition:stroke-dashoffset .6s var(--ease)}
+.cd b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.125rem}
 .lab{margin:0 0 4px;color:var(--mute);font-size:.9375rem}
 .big{margin:0;font-weight:600;font-size:clamp(3rem,15vw,5rem);line-height:1.05;letter-spacing:-.02em;font-variant-numeric:lining-nums tabular-nums}
 .cur{font-size:.5em;font-weight:500;color:var(--mute);vertical-align:.7em;margin-right:6px}
@@ -150,16 +158,30 @@ input[type=number],input[type=date],input[type=time]{font:600 1.0625rem Inter,sy
 .note{color:var(--mute);font-size:.8125rem;margin:12px 0 0}
 .txt{margin:12px 12px 0 0;background:transparent;color:var(--ink);font-weight:600;padding:0 4px;text-decoration:underline;text-underline-offset:3px}
 .ch{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}.ch h2{margin:0}.pg{display:flex;gap:6px;align-items:center}.tbtn{padding:0 14px;font-size:.875rem}
-.bars{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px;height:220px;touch-action:pan-y}
+.bars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;touch-action:pan-y}
 /* Chart bars: each bar is a button so it can be tapped or reached by keyboard. */
-.col{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;background:transparent;border-radius:12px;padding:6px 0 4px;min-width:0;min-height:0;height:100%;color:var(--mute);font-size:.75rem}
-.col .bv{font-weight:600;color:var(--ink)}
-.col .bd{white-space:pre-line;text-align:center;line-height:1.2}
-.col .bc{flex:1;width:100%;display:flex;align-items:flex-end;min-height:0}
+.col{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;background:var(--sf2);border-radius:12px;padding:8px 4px;min-width:0;min-height:60px;color:var(--mute);font-size:.8125rem}
+.col .bv{order:2;font-weight:600;font-size:1rem;color:var(--ink)}
+.col .bd{order:1;white-space:normal;text-align:center;line-height:1.2}
+.col .bc{display:none}
 .col i{display:block;width:100%;height:100%;border-radius:8px 8px 4px 4px;background:var(--bar);transform:scaleY(0);transform-origin:bottom;transition:transform .8s var(--spring) calc(var(--i)*50ms),background-color .2s}
-.col.past i{opacity:.6}
-.col.on i{background:var(--sel);opacity:1}
-.col.on .bd{color:var(--ink);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.col.past{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.col.on{background:var(--sel);color:var(--onsel);opacity:1}
+.col.on .bv,.col.on .bd{color:var(--onsel)}
+.col.on .bd{font-weight:700}
+.grp{margin:24px 0 0;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.more>summary{display:flex;align-items:center;min-height:48px;margin-top:8px;border-top:1px solid var(--line);font-weight:600;cursor:pointer}
+.more>summary::after{content:"+";margin-left:auto;font-size:1.375rem;font-weight:400;color:var(--mute)}
+.more[open]>summary::after{content:"\2212"}
+.more>summary::-webkit-details-marker{display:none}
+.hint{margin:0 0 4px;font-size:.9375rem}
+.sbar{display:flex;gap:2px;height:22px;margin:12px 0 10px;border-radius:11px;overflow:hidden}
+.sbar i{display:block;flex:0 1 0;min-width:6px;background:var(--c);transition:flex-grow .5s var(--ease)}
+.sbar i[hidden]{display:none}
+.sleg{list-style:none;margin:0;padding:0}
+.sleg li{display:flex;align-items:center;gap:10px;min-height:40px;border-top:1px solid var(--line);font-size:.9375rem}.sleg li:first-child{border-top:0}
+.sleg .sw{width:14px;height:14px;border-radius:5px;background:var(--c);flex:none}.sleg .nm{flex:1;min-width:0}.sleg .am{font-weight:600}.sleg .pc{width:3.4em;text-align:right;color:var(--mute);font-size:.8125rem}
+.k0{--c:var(--sel)}.k1{--c:var(--c1)}.k2{--c:var(--c2)}.k3{--c:var(--c3)}.k4{--c:var(--c4)}.k5{--c:var(--c5)}.k6{--c:var(--mute)}
 /* Bottom tab bar (phones). Body gets extra bottom padding so it never covers the last row. */
 .tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--bg);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
 .tabs button{flex-direction:column;gap:2px;min-height:52px;font-size:.75rem;background:transparent;color:var(--mute);border-radius:14px}
@@ -168,6 +190,7 @@ input[type=number],input[type=date],input[type=time]{font:600 1.0625rem Inter,sy
 .sclose,.scrim{display:none}
 /* PHONE RULES: hide every panel, then show the one that matches body[data-tab]. */
 @media(max-width:899px){.panel,.set{display:none}body[data-tab="pay"] #tab-pay,body[data-tab="hours"] #tab-hours,body[data-tab="set"] #tab-set{display:block}.set{max-width:var(--maxw);margin:0 auto;padding:20px 16px;animation:rise .35s var(--ease)}}
+@media(min-width:600px) and (max-width:899px){body[data-tab="set"] .set,#tab-hours{max-width:var(--measure);margin-left:auto;margin-right:auto}}
 /* DESKTOP RULES: two columns, no tab bar, Settings as a fixed slide-over that is
    visibility:hidden while closed so keyboard users cannot tab into it by accident. */
 @media(min-width:900px){
@@ -177,9 +200,9 @@ body{padding-bottom:0}.tabs{display:none}
 .wrap{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:minmax(340px,420px) minmax(0,1fr);gap:0 40px;padding:8px 16px 40px;align-items:start}
 .wrap .panel{padding:20px 0;max-width:none;margin:0}
 .hero{margin:0;border-radius:20px;padding:28px 24px}
-.set{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--bg);border-left:1px solid var(--line);overflow:auto;padding:calc(20px + env(safe-area-inset-top,0px)) 20px 24px;transform:translateX(100%);visibility:hidden;transition:transform .25s var(--ease),visibility 0s .25s;z-index:40}
+.set{overscroll-behavior:contain;position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--bg);border-left:1px solid var(--line);overflow:auto;padding:calc(20px + env(safe-area-inset-top,0px)) 20px 24px;transform:translateX(100%);visibility:hidden;transition:transform .25s var(--ease),visibility 0s .25s;z-index:40}
 .pop .set{transform:none;visibility:visible;transition-delay:0s}
-.scrim{display:block;position:fixed;inset:0;background:rgba(16,22,18,.4);opacity:0;pointer-events:none;transition:opacity .25s;z-index:35}
+.scrim{display:block;position:fixed;inset:0;background:rgba(20,14,34,.45);opacity:0;pointer-events:none;transition:opacity .25s;z-index:35}
 .pop .scrim{opacity:1;pointer-events:auto}
 .sclose{display:inline-flex}}
 /* ==================== 3. MOTION ==================== (all of it stops for reduce-motion at the very end) */
@@ -193,8 +216,8 @@ body{padding-bottom:0}.tabs{display:none}
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="theme-color" content="#F7F8F4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#101612" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFBF5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#140E22" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Payday">
@@ -218,31 +241,33 @@ body{padding-bottom:0}.tabs{display:none}
 <!-- MAIN: the two big panels. Hours (everything that changes each payday) and Pay (the result). -->
 <main class="wrap">
 <section class="panel" id="tab-hours"><h2>Hours</h2><p class="sub">For the payday shown above</p>
-<div class="g2"><label for="st">Shift starts<input id="st" type="time"></label><label for="en">Shift ends<input id="en" type="time"></label></div>
-<div class="row f"><label for="br">Unpaid break (hours)</label><input id="br" type="number" inputmode="decimal" step="any"></div>
+<div class="g2"><label for="st">Shift starts<input autocomplete="off" id="st" type="time"></label><label for="en">Shift ends<input autocomplete="off" id="en" type="time"></label></div>
+<div class="row f"><label for="br">Unpaid break (hours)</label><input autocomplete="off" id="br" type="number" inputmode="decimal" step="any"></div>
 <p class="hint" id="shsum"></p>
 <div class="seg" data-seg="shift" role="group" aria-label="Night hours"><button type="button" data-v="auto">From schedule</button><button type="button" data-v="cu">Custom</button></div>
-<div class="row"><label for="reg">Regular hours</label><div class="st" data-f="reg" data-s="1"><button type="button" aria-label="Decrease regular hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="reg" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase regular hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
-<div class="row"><label for="night">Night diff hours<small>10PM–6AM</small></label><div class="st" data-f="night" data-s="0.5"><button type="button" aria-label="Decrease night hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="night" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase night hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
-<div class="row"><label for="ot">Overtime hours</label><div class="st" data-f="ot" data-s="0.25"><button type="button" aria-label="Decrease overtime hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="ot" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase overtime hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
-<div class="row"><label for="rdot">RDOT hours<small>Rest day overtime</small></label><div class="st" data-f="rdot" data-s="0.25"><button type="button" aria-label="Decrease RDOT hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="rdot" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase RDOT hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
-<div class="row"><label for="pto">PTO hours</label><div class="st" data-f="pto" data-s="1"><button type="button" aria-label="Decrease PTO hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="pto" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase PTO hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
-<div class="row"><label for="days">Days worked<small>Allowances are paid per day</small></label><div class="st" data-f="days" data-s="1"><button type="button" aria-label="Decrease days worked"><svg width="20" height="20"><use href="#mi"/></svg></button><input id="days" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase days worked"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
-<div class="row"><label for="oe">Holiday pay<small>Taxable, not part of basic pay</small></label><div class="pre"><span>₱</span><input id="oe" type="number" inputmode="decimal" step="any"></div></div>
-<div class="row"><label for="bon">Bonus or incentive<small>Tax-free, not part of basic pay</small></label><div class="pre"><span>₱</span><input id="bon" type="number" inputmode="decimal" step="any"></div></div>
-<div class="row"><label for="other">Extra deduction<small>One-off, this payday only</small></label><div class="pre"><span>₱</span><input id="other" type="number" inputmode="decimal" step="any"></div></div>
+<div class="row"><label for="reg">Regular hours</label><div class="st" data-f="reg" data-s="1"><button type="button" aria-label="Decrease regular hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input autocomplete="off" id="reg" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase regular hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="night">Night diff hours<small>10PM–6AM</small></label><div class="st" data-f="night" data-s="0.5"><button type="button" aria-label="Decrease night hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input autocomplete="off" id="night" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase night hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="ot">Overtime hours</label><div class="st" data-f="ot" data-s="0.25"><button type="button" aria-label="Decrease overtime hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input autocomplete="off" id="ot" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase overtime hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="rdot">RDOT hours<small>Rest day overtime</small></label><div class="st" data-f="rdot" data-s="0.25"><button type="button" aria-label="Decrease RDOT hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input autocomplete="off" id="rdot" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase RDOT hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="pto">PTO hours</label><div class="st" data-f="pto" data-s="1"><button type="button" aria-label="Decrease PTO hours"><svg width="20" height="20"><use href="#mi"/></svg></button><input autocomplete="off" id="pto" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase PTO hours"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="days">Days worked<small>Allowances are paid per day</small></label><div class="st" data-f="days" data-s="1"><button type="button" aria-label="Decrease days worked"><svg width="20" height="20"><use href="#mi"/></svg></button><input autocomplete="off" id="days" type="number" inputmode="decimal" step="any"><button type="button" aria-label="Increase days worked"><svg width="20" height="20"><use href="#pl"/></svg></button></div></div>
+<div class="row"><label for="oe">Holiday pay<small>Taxable, not part of basic pay</small></label><div class="pre"><span>₱</span><input autocomplete="off" id="oe" type="number" inputmode="decimal" step="any"></div></div>
+<div class="row"><label for="bon">Bonus or incentive<small>Tax-free, not part of basic pay</small></label><div class="pre"><span>₱</span><input autocomplete="off" id="bon" type="number" inputmode="decimal" step="any"></div></div>
+<div class="row"><label for="other">Extra deduction<small>One-off, this payday only</small></label><div class="pre"><span>₱</span><input autocomplete="off" id="other" type="number" inputmode="decimal" step="any"></div></div>
 <div class="sec imp"><h2 style="font-size:1.125rem">Import payslips</h2>
-<p class="sub">Pick one or more Concentrix payslip PDFs. Hours, night differential, overtime, leave, holiday pay, bonuses and deductions are filled in for each payday, and you check them before anything is saved. The PDF is read on this device and is not uploaded. Names and ID numbers are never read or kept. Set your hourly rate and allowances in Settings first, so the check can compare them.</p>
-<input id="impf" type="file" accept=".pdf,application/pdf" multiple hidden>
+<p class="sub">Pick one or more Concentrix payslip PDFs. The app fills in hours, night differential, overtime, leave, holiday pay, bonuses and deductions for each payday, and you check them before anything is saved. The app reads the PDF on this device and does not upload it. It never reads or keeps names or ID numbers. Set your hourly rate and allowances in Settings first so it can compare them.</p>
+<input autocomplete="off" id="impf" type="file" accept=".pdf,application/pdf" multiple hidden>
 <button type="button" id="impb">Choose payslip PDFs</button>
 <div id="impr" aria-live="polite"></div>
-<p class="note">The PDF reader (pdf.js) is downloaded from cdnjs.cloudflare.com the first time you import, so you need a connection then.</p></div>
+<p class="note">The app downloads the PDF reader (pdf.js) from cdnjs.cloudflare.com the first time you import, so you need a connection then.</p></div>
 </section>
 <section class="panel" id="tab-pay">
 <!-- RESULT: big take-home number, then the chart and the payslip. Numbers are filled in by calc() in the script. -->
-<div class="hero"><p class="lab">Take-home this payday</p><p class="big" id="net"></p>
-<dl class="sm"><div><dt>Gross</dt><dd id="g1"></dd></div><div><dt>Deductions</dt><dd id="g2"></dd></div><div><dt>Kept</dt><dd id="g3"></dd></div></dl></div>
-<div class="sec" style="margin-top:24px"><div class="ch"><h2>Next paydays</h2><div class="pg"><button type="button" id="cnow" class="tbtn" hidden>Now</button><button type="button" id="cp" aria-label="Earlier paydays"><svg width="20" height="20"><use href="#cl"/></svg></button><button type="button" id="cn" aria-label="Later paydays"><svg width="20" height="20"><use href="#cr"/></svg></button></div></div><div class="bars" id="bars" role="group" aria-label="Take-home for the next paydays. Press a bar to open that payday."></div><p class="note" id="bcap"></p></div>
+<div class="hero"><div class="htop"><p class="lab">Take-home this payday</p><div class="cd" id="cd" role="img" aria-label=""><div class="rg"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" cx="22" cy="22" r="20"/><circle class="p" id="cdp" cx="22" cy="22" r="20"/></svg><b id="cdn"></b></div><span id="cdl"></span></div></div><p class="big" id="net"></p>
+<dl class="sm"><div><dt>Gross</dt><dd id="g1"></dd></div><div><dt>Deductions</dt><dd id="g2"></dd></div><div><dt>Kept</dt><dd id="g3"></dd></div></dl>
+<button type="button" id="goset" class="txt" style="margin:12px 0 0;padding:0" hidden>Add your monthly basic pay in Settings to see your take-home →</button></div>
+<div class="sec" id="splitwrap" style="margin-top:24px" hidden><h2>Where it goes</h2><div class="sbar" id="sbar" aria-hidden="true"><i class="k0"></i><i class="k1"></i><i class="k2"></i><i class="k3"></i><i class="k4"></i><i class="k5"></i><i class="k6"></i></div><ul class="sleg" id="sleg"></ul></div>
+<div class="sec" style="margin-top:24px"><div class="ch"><h2>Next paydays</h2><div class="pg"><button type="button" id="cnow" class="tbtn" hidden>Now</button><button type="button" id="cp" aria-label="Earlier paydays"><svg width="20" height="20"><use href="#cl"/></svg></button><button type="button" id="cn" aria-label="Later paydays"><svg width="20" height="20"><use href="#cr"/></svg></button></div></div><div class="bars" id="bars" role="group" aria-label="Take-home for the next paydays. Press a payday to open it."></div><p class="note" id="bcap"></p></div>
 <div class="sec"><h2>Payslip</h2>
 <table class="led"><caption class="sr">Payslip breakdown</caption>
 <tbody><tr class="sh"><th colspan="2" scope="colgroup">Earnings</th></tr></tbody><tbody id="earn"></tbody>
@@ -253,26 +278,33 @@ body{padding-bottom:0}.tabs{display:none}
 <div class="sec"><h2>13th month pay</h2>
 <p class="sub" id="m13h"></p>
 <p class="big2" id="m13"></p>
-<div class="row f"><label for="ytdb">Other basic pay so far (₱)<small>Paydays you save here count automatically. Add basic pay from paydays you did not save, such as before you started using this</small></label><input id="ytdb" type="number" inputmode="decimal" step="any"></div>
+<div class="row f"><label for="ytdb">Other basic pay so far (₱)<small>Paydays you save here count automatically. Add basic pay from paydays you did not save, such as before you started using this</small></label><input autocomplete="off" id="ytdb" type="number" inputmode="decimal" step="any"></div>
 <table class="led"><caption class="sr">13th month pay working</caption><tbody id="m13d"></tbody></table>
-<p class="note">Basic pay only: allowances, overtime, night differential and holiday pay are not counted. Employers must pay it by December 24, and the first ₱90,000 of 13th month pay and other bonuses is tax-free.</p></div>
+<p class="note">Only basic pay counts. Allowances, overtime, night differential and holiday pay do not. Employers must pay it by December 24, and the first ₱90,000 of 13th month pay and other bonuses is tax-free.</p></div>
 </section>
 </main>
 <!-- SETTINGS: things that rarely change (rates, allowances, loan, payday pattern). A tab on phones, a slide-out panel on wide screens. -->
 <aside class="set" id="tab-set"><div class="sh"><h2>Pay settings</h2><button type="button" id="sclose" class="sclose" aria-label="Close settings"><svg width="20" height="20"><use href="#ix"/></svg></button></div><p class="sub" id="sum"></p>
-<div class="row f"><label for="basic">Monthly basic pay (₱)</label><input id="basic" type="number" inputmode="decimal" step="any"></div>
-<div class="row"><label for="rate">Hourly rate (₱)<small>Basic pay × 12 ÷ 2,088 hours</small></label><input id="rate" type="number" inputmode="decimal" step="any"></div>
-<div class="row"><label for="comp">Complexity allowance (₱/month)</label><input id="comp" type="number" inputmode="decimal" step="any"></div>
-<div class="row"><label for="rice">Rice allowance (₱/month)</label><input id="rice" type="number" inputmode="decimal" step="any"></div>
-<div class="row"><label for="otm">Overtime rate (%)</label><input id="otm" type="number" inputmode="decimal" step="any"></div>
-<div class="row"><label for="rdotm">RDOT rate (%)<small>Rest day overtime. 169% is the standard legal rate, so check your payslip</small></label><input id="rdotm" type="number" inputmode="decimal" step="any"></div>
-<div class="row"><label for="ndp">Night differential (%)<small>Saved for each payday. Check your payslip: it is usually 10% or 15%</small></label><input id="ndp" type="number" inputmode="decimal" step="any"></div>
-<div class="row"><label for="loan">Salary loan (₱)<small>Taken every payday until the last deduction date below</small></label><input id="loan" type="number" inputmode="decimal" step="any"></div>
-<div class="row"><label for="loanStart">First loan deduction<small>The first payday the loan came out</small></label><input id="loanStart" type="date"></div>
-<div class="row"><label for="loanEnd">Last loan deduction<small>No loan is taken after this payday</small></label><input id="loanEnd" type="date"></div>
-<div class="row"><label for="anchor">Payday pattern starts<small>Paydays repeat every 14 days from this date</small></label><input id="anchor" type="date"></div>
+<p class="hint" id="start" hidden>Start with your monthly basic pay. Everything else is optional.</p>
+<h3 class="grp">Pay</h3>
+<div class="row f"><label for="basic">Monthly basic pay (₱)</label><input autocomplete="off" id="basic" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="rate">Hourly rate (₱)<small>Basic pay × 12 ÷ 2,088 hours</small></label><input autocomplete="off" id="rate" type="number" inputmode="decimal" step="any"></div>
+<details class="more" id="more"><summary>Allowances, rates, loan and schedule</summary>
+<h3 class="grp">Allowances</h3>
+<div class="row f"><label for="comp">Complexity allowance (₱/month)</label><input autocomplete="off" id="comp" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="rice">Rice allowance (₱/month)</label><input autocomplete="off" id="rice" type="number" inputmode="decimal" step="any"></div>
+<h3 class="grp">Rates</h3>
+<div class="row f"><label for="otm">Overtime rate (%)</label><input autocomplete="off" id="otm" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="rdotm">RDOT rate (%)<small>Rest day overtime. 169% is the standard legal rate, so check your payslip</small></label><input autocomplete="off" id="rdotm" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="ndp">Night differential (%)<small>Saved for each payday. Check your payslip: it is usually 10% or 15%</small></label><input autocomplete="off" id="ndp" type="number" inputmode="decimal" step="any"></div>
+<h3 class="grp">Loan and schedule</h3>
+<div class="row f"><label for="loan">Salary loan (₱)<small>Taken every payday until the last deduction date below</small></label><input autocomplete="off" id="loan" type="number" inputmode="decimal" step="any"></div>
+<div class="row"><label for="loanStart">First loan deduction<small>The first payday the loan came out</small></label><input autocomplete="off" id="loanStart" type="date"></div>
+<div class="row"><label for="loanEnd">Last loan deduction<small>No loan is taken after this payday</small></label><input autocomplete="off" id="loanEnd" type="date"></div>
+<div class="row"><label for="anchor">Payday pattern starts<small>Paydays repeat every 14 days from this date</small></label><input autocomplete="off" id="anchor" type="date"></div>
 <div class="blk"><span class="t2" id="ctl">SSS, PhilHealth and Pag-IBIG on this payday<small>Follows the payslip pattern: SSS every payday, PhilHealth and Pag-IBIG on the first payday of the month, salary loan every payday.</small></span>
 <div class="seg" data-seg="cmode" role="group" aria-labelledby="ctl"><button type="button" data-v="auto">Payslip pattern</button><button type="button" data-v="none">None</button></div></div>
+</details>
 <p class="note">Built from one Concentrix employee’s Jul–Oct 2026 payslips, so treat the results as an estimate. SSS is 5% of that payday’s gross rounded to the nearest ₱500, and the slips were sometimes ₱25 higher. PhilHealth (2.5% of basic) and Pag-IBIG (2% up to ₱200 a month) are taken on the first payday of the month; the first-payday amounts are worked out from your year-to-date totals, not seen directly. Allowances are prorated per day worked. Tax has been ₱0 so far. Your payslip is the final word.</p>
 <button class="txt" id="inst" type="button" hidden>Install this app</button>
 <button class="txt" id="reset" type="button">Reset all values</button>
@@ -322,7 +354,7 @@ for(j=i-1;dateOf(j).getUTCMonth()===m;j--)k++;
 c=k;for(j=i+1;dateOf(j).getUTCMonth()===m;j++)c++;
 PK=k;var ni=nextIdx(),st=i<ni?"Past payday":i===ni?"Next payday":"Upcoming payday";
 $("pdd").textContent=d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
-$("pds").textContent=st+", "+k+" of "+c+" this month";
+$("pds").textContent=st+", "+k+" of "+c+" this month";countdown();
 }
 /* go(n) moves n paydays forward or back (the arrows). Save the current payday first, then load the next. */
 function go(n){stash();sel=idx()+n;load();showPay();paint();calc();["pdd","pds"].forEach(function(i){fx($(i),[{transform:"translateX("+n*18+"px)",opacity:0},{transform:"none",opacity:1}],240)})}
@@ -344,7 +376,7 @@ document.querySelectorAll(".seg").forEach(function(g){var k=g.getAttribute("data
      Salary loan the same amount every payday from the "first loan deduction" date to the "last" one
      Tax         annualised estimate, usually zero at these incomes
    Result: gross, deductions and net, written into the table, the top number and the stats. */
-function calc(){
+function calc(){$("goset").hidden=$("start").hidden=S.rate>0;
 var rate=S.rate,m=12/26;
 var E=[["Regular pay, "+S.reg+" hrs",S.reg*rate],["Night differential "+S.ndp+"%, "+S.night+" hrs",S.night*rate*S.ndp/100],["Overtime at "+S.otm+"%, "+S.ot+" hrs",S.ot*rate*S.otm/100],["RDOT at "+S.rdotm+"%, "+S.rdot+" hrs",S.rdot*rate*S.rdotm/100],["PTO, "+S.pto+" hrs",S.pto*rate],["Complexity allowance, "+S.days+" days",S.comp*12/261*S.days],["Rice allowance, "+S.days+" days",S.rice*12/261*S.days],["Holiday pay",S.oe],["Bonus or incentive",S.bon]].map(function(x){return[x[0],r2(x[1])]}).filter(function(x){return x[1]!==0});
 var gross=r2(E.reduce(function(a,x){return a+x[1]},0));
@@ -364,8 +396,21 @@ countTo(net);$("net2").textContent=money(net);$("net3").textContent=money(net);
 $("g1").textContent=money(gross);$("g2").textContent="−"+money(tded);$("g3").textContent=(gross>0?Math.round(clamp(net/gross*100,0,100)):0)+"%";
 $("avg").textContent="Averaged over a year, this payday is about "+money(r2(net*26/12))+" a month. Estimated taxable income: "+money(r2(Math.max(0,annual)))+" a year.";
 $("sum").textContent=money(S.basic)+" basic, "+money(S.rate)+" an hour";
-extras(gross,net);m13();
+extras(gross,net);m13();split(net,Dd,gross);
 }
+/* "Where it goes": one bar, take-home plus each deduction, sized by share of gross. Segments are fixed elements whose flex-grow changes, so typing animates smoothly instead of redrawing. */
+var SK={"Take-home":0,"SSS":1,"PhilHealth":2,"Pag-IBIG":3,"Salary loan":4,"Withholding tax, estimate":5,"Other deduction":6};
+function split(net,Dd,gross){var w=$("splitwrap");if(gross<=0){w.hidden=true;return}w.hidden=false;
+var segs=[["Take-home",Math.max(0,net)]].concat(Dd),tot=segs.reduce(function(a,x){return a+x[1]},0)||1,v=[0,0,0,0,0,0,0],on=0;
+segs.forEach(function(x){v[SK[x[0]]]=x[1]});
+[].forEach.call($("sbar").children,function(e,i){e.hidden=v[i]<=0;e.style.flexGrow=v[i]});
+$("sleg").innerHTML=segs.map(function(x){var p=x[1]/tot*100;return'<li class="k'+SK[x[0]]+'"><span class="sw"></span><span class="nm">'+x[0]+'</span><span class="am">'+money(x[1])+'</span><span class="pc">'+(p>0&&p<1?"<1":Math.round(p))+"%</span></li>"}).join("")}
+/* Days to the selected payday, drawn as a ring that fills over the 14-day cycle. */
+function countdown(){var d=dateOf(idx()),n=new Date(),days=Math.round((d.getTime()-Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()))/864e5),b,l,f,a;
+if(days>0){b=days;l=days===1?"day to go":"days to go";f=clamp(1-days/14,0,1);a="Payday in "+days+(days===1?" day":" days")}
+else if(days===0){b="!";l="today";f=1;a="Payday is today"}
+else{b="\u2713";l="paid";f=1;a="Paid "+(-days)+(days===-1?" day":" days")+" ago"}
+$("cdn").textContent=b;$("cdl").textContent=l;$("cdp").style.strokeDashoffset=(1-f)*125.66;$("cd").setAttribute("aria-label",a)}
 /* Counts the big take-home number up to its new value over about 450 ms. Skipped for reduce-motion. */
 var cur=0,raf;
 function countTo(v){var st=cur,t0=null,el=$("net");cancelAnimationFrame(raf);
@@ -411,7 +456,7 @@ b.setAttribute("aria-label",fm(d,{weekday:"long",month:"long",day:"numeric"})+",
 b.setAttribute("aria-pressed",ix===idx()?"true":"false")}
 var cap="Take-home at this payday\u2019s hours. First paydays of the month are lower because PhilHealth and Pag-IBIG come out then.";
 if(S.loan>0){i=ni;while(isoOf(i)<=S.loanEnd&&i<ni+80)i++;if(i<WIN+BN)cap+=" From "+fm(dateOf(i),{month:"short",day:"numeric"})+" the salary loan stops, adding "+money(S.loan)+" per payday."}
-$("bcap").textContent=cap+" Swipe the chart or use the arrows for more paydays."}
+$("bcap").textContent=cap}
 /* Every change ends in save(): remember this payday's inputs, then store everything in localStorage.
    The try/catch matters: some private-browsing modes refuse storage and the page must still work. */
 function save(){stash();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -469,7 +514,7 @@ S[k]=b.getAttribute("data-v");
 if(k==="shift"){autoNight();$("night").value=S.night}
 paint();save();calc()})})});
 
-$("reset").addEventListener("click",function(){S=Object.assign({},D);S.log={};sel=null;showPay();paint();save();calc()});
+var rt=null;$("reset").addEventListener("click",function(){var b=this;if(!b.dataset.arm){b.dataset.arm="1";b.textContent="Tap again to erase all saved data";clearTimeout(rt);rt=setTimeout(function(){delete b.dataset.arm;b.textContent="Reset all values"},4000);return}clearTimeout(rt);delete b.dataset.arm;b.textContent="Reset all values";S=Object.assign({},D);S.log={};sel=null;showPay();paint();save();calc()});
 S.log=S.log||{};if(S.shift==="n3"&&!S.st2){S.st="03:00";S.en="12:00"}S.st2=1;if(S.shift!=="cu")S.shift="auto";
 load();showPay();
 $("cp").addEventListener("click",function(){WOFF-=4;PG=true;calc()});
@@ -594,14 +639,13 @@ tab(S.rate>0?"pay":"set");
 var DP=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();DP=e;$("inst").hidden=false});
 $("inst").addEventListener("click",function(){if(DP){DP.prompt();DP=null;$("inst").hidden=true}});
 if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname==="localhost")){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
-if(S.rate<=0&&matchMedia("(min-width:900px)").matches)pop(true);
+$("more").open=S.rate>0;$("goset").addEventListener("click",function(){if(matchMedia("(min-width:900px)").matches)pop(true);else document.querySelector('.tabs button[data-t="set"]').click()});
 </script>
 <footer style="max-width:1120px;margin:0 auto;padding:18px 20px 104px;text-align:center;font:12px/1.6 Inter,Arial,sans-serif;color:var(--mute)">
   <span>Payday Calculator</span>
-  <span aria-hidden="true"> · </span><a href="terms.html" style="color:inherit">Terms</a>
-  <span aria-hidden="true"> · </span><a href="privacy.html" style="color:inherit">Privacy</a>
-  <span aria-hidden="true"> · </span><a href="disclaimer.html" style="color:inherit">Disclaimer</a>
+  <span aria-hidden="true"> · </span><a href="terms.html" style="color:inherit;display:inline-block;padding:14px 6px">Terms</a>
+  <span aria-hidden="true"> · </span><a href="privacy.html" style="color:inherit;display:inline-block;padding:14px 6px">Privacy</a>
+  <span aria-hidden="true"> · </span><a href="disclaimer.html" style="color:inherit;display:inline-block;padding:14px 6px">Disclaimer</a>
 </footer>
 </body>
 </html>
-
